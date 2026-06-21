@@ -11,7 +11,7 @@ const USER_DATA = app.getPath('userData')
 
 export const CONFIG_PATH = path.join(USER_DATA, 'config.json')
 
-export const LOL_SKINS_URL = 'https://github.com/darkseal-org/lol-skins/archive/refs/heads/main.zip'
+export const LOL_SKINS_URL = 'https://github.com/Hopelsz/LeagueSkins/releases/download/16.12/skins.zip'
 
 export const CSLOL_MANAGER_DESTINATION = USER_DATA
 
@@ -27,8 +27,7 @@ export const LOL_SKINS_DESTINATION = USER_DATA
 export const LOL_SKINS_LOCATION = path.join(USER_DATA, 'lol-skins-main', 'skins')
 
 export const LOL_SKINS_METADATA_URL =
-  'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/skins.json'
-
+  'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/zh_cn/v1/skins.json'
 export const LOL_SKINS_METADATA_LOCATION = path.join(USER_DATA, 'skins_metadata.json')
 
 export const TEMP_DIR = path.join(USER_DATA, 'temp')

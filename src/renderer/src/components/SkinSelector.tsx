@@ -51,32 +51,46 @@ export default function SkinSelector({ champion, setChampion }: SkinSelectorProp
     })()
   }, [])
 
-  const display = champion === null ? 'none' : 'block'
-
   const championSkins =
     champion === null ? [] : allSkins.filter((skin) => skin.championId === champion.id)
 
-  if (championSkins.length === 0)
-    return <h2 style={{ display }}> No skins found for this champion. </h2>
+  if (champion === null) return <></>
+
+  if (championSkins.length === 0) return <h2>没有找到该英雄的皮肤</h2>
 
   return (
-    <div style={{ display }}>
-      {/* Title */}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
+      }}
+    >
+      {/* Fixed Header */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '1rem'
+          flexShrink: 0,
+          padding: '1rem',
+          paddingTop: '0.5rem',
+          backgroundColor: '#010a13'
         }}
       >
-        <button className="back-button" onClick={() => setChampion(null)}>
-          <BackIcon />
-        </button>
-        <h2> {championSkins[0].championName} </h2>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '1rem'
+          }}
+        >
+          <button className="back-button" onClick={() => setChampion(null)}>
+            <BackIcon />
+          </button>
+          <h2 style={{ margin: 0 }}>{championSkins[0].championName}</h2>
+        </div>
       </div>
 
-      {/* Skin Cards */}
+      {/* Scrollable Content */}
       <div className="skin-container">
         {championSkins.map((skin) => (
           <div

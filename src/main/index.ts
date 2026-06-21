@@ -6,27 +6,64 @@
  * └───────────────────────────────────────────────────────────────────────────────┘
  */
 
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import './api'
 
 import icon from '../../resources/icon.png?asset'
 
+let mainWindow: BrowserWindow | null = null
+
+export function getMainWindow(): BrowserWindow | null {
+  return mainWindow
+}
+
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+  mainWindow = new BrowserWindow({
+    width: 1100,
+    height: 750,
     show: false,
     autoHideMenuBar: true,
     icon: icon,
+    frame: false,
+    backgroundColor: '#000000ff',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow.show())
+  // Window control handlers
+  ipcMain.on('window-minimize', () => {
+    mainWindow?.minimize()
+  })
+
+  ipcMain.on('window-maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow?.maximize()
+    }
+  })
+
+  ipcMain.on('window-close', () => {
+    mainWindow?.close()
+  })
+
+  ipcMain.handle('window-is-maximized', () => {
+    return mainWindow?.isMaximized() ?? false
+  })
+
+  mainWindow.on('ready-to-show', () => mainWindow?.show())
+
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window-maximized', true)
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-maximized', false)
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)

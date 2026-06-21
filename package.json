@@ -38,7 +38,7 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "cross-var": "^1.1.0",
-    "electron": "^34.2.0",
+    "electron": "^34.5.8",
     "electron-builder": "^25.1.8",
     "electron-vite": "^3.0.0",
     "eslint": "^9.20.1",

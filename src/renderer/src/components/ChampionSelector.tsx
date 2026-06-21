@@ -27,22 +27,72 @@ export default function ChampionSelector({
   )
 
   return (
-    <div style={{ display: champion === null ? 'block' : 'none' }}>
-      <h1> Champions </h1>
-      <div id="champions">
+    <div
+      style={{
+        display: champion === null ? 'flex' : 'none',
+        flexDirection: 'column',
+        height: '100%'
+      }}
+    >
+      {/* Fixed Header */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '1rem',
+          paddingTop: '0.5rem',
+          // backgroundColor: '#010a13'
+        }}
+      >
+        <h1 style={{ margin: '0 0 1rem 0' }}>英雄联盟皮肤管理器</h1>
         {/* Search Container */}
-        <div id="search-container">
-          <div style={{ width: '2rem', marginRight: '1rem' }}>
+        <div
+          id="search-container"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <div style={{ width: '2rem' }}>
             <SearchIcon />
           </div>
           <input
             type="text"
             value={championSearch}
             onChange={(event) => setChampionSearch(event.target.value)}
-            placeholder="SEARCH FOR A CHAMPION"
+            placeholder="搜索英雄"
+            style={{
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '8px 12px',
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              color: '#f0e6d2',
+              width: '100%',
+              maxWidth: '400px'
+            }}
           />
         </div>
+      </div>
 
+      {/* Scrollable Content */}
+      <div
+        id="champions"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, 8rem)',
+          alignContent: 'start',
+          justifyContent: 'center',
+          gap: '1.5rem',
+          maxWidth: '1500px',
+          margin: '0 auto',
+          padding: '1rem'
+        }}
+      >
         {/* Champion Cards */}
         {filteredChampions.map((c) => (
           <button className="champion" key={c.id} onClick={() => setChampion(c)}>

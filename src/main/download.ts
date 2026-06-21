@@ -8,6 +8,7 @@
 
 import fs from 'fs-extra'
 import path from 'path'
+import https from 'https'
 import JSZip from 'jszip'
 import { Mutex } from 'async-mutex'
 
@@ -28,6 +29,99 @@ import {
 } from './metadata'
 
 const downloadMutex = new Mutex()
+
+async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retryCount: number = 0): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      reject(new Error('Too many redirects'))
+      return
+    }
+
+    if (retryCount > 3) {
+      reject(new Error(`Failed to download after ${retryCount} retries: ${url}`))
+      return
+    }
+
+    console.log(`[downloadUrl] Starting download from: ${url} (retry #${retryCount}, redirect #${redirectCount})`)
+    const parsedUrl = new URL(url)
+    const options: https.RequestOptions = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'GET',
+      rejectUnauthorized: false,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*'
+      },
+      timeout: 60000
+    }
+
+    const req = https.request(options, (res) => {
+      console.log(`[downloadUrl] Response status: ${res.statusCode} from ${url}`)
+      
+      if (res.statusCode && (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308)) {
+        const location = res.headers.location
+        if (location) {
+          console.log(`[downloadUrl] Following redirect to: ${location}`)
+          resolve(downloadUrlWithRetry(location, redirectCount + 1, retryCount))
+        } else {
+          reject(new Error(`Redirect without location header: ${url}`))
+        }
+        return
+      }
+
+      if (res.statusCode && res.statusCode >= 500) {
+        const delay = Math.pow(2, retryCount) * 1000
+        console.log(`[downloadUrl] Server error ${res.statusCode}, retrying in ${delay}ms...`)
+        setTimeout(() => {
+          resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
+        }, delay)
+        return
+      }
+
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`HTTP ${res.statusCode}: ${url}`))
+        return
+      }
+
+      const chunks: Buffer[] = []
+      res.on('data', (chunk) => chunks.push(chunk))
+      res.on('end', () => {
+        const totalSize = Buffer.concat(chunks).length
+        console.log(`[downloadUrl] Download complete, size: ${totalSize} bytes`)
+        resolve(Buffer.concat(chunks))
+      })
+    })
+
+    req.on('error', (err) => {
+      console.error(`[downloadUrl] Download failed: ${err.message}`)
+      const delay = Math.pow(2, retryCount) * 1000
+      if (retryCount < 3) {
+        console.log(`[downloadUrl] Retrying in ${delay}ms...`)
+        setTimeout(() => {
+          resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
+        }, delay)
+      } else {
+        reject(err)
+      }
+    })
+
+    req.on('timeout', () => {
+      console.error(`[downloadUrl] Request timed out`)
+      const delay = Math.pow(2, retryCount) * 1000
+      if (retryCount < 3) {
+        console.log(`[downloadUrl] Retrying in ${delay}ms...`)
+        setTimeout(() => {
+          resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
+        }, delay)
+      } else {
+        reject(new Error('Request timed out'))
+      }
+    })
+
+    req.end()
+  })
+}
 
 /**
  * This function decompresses a ZIP buffer into a directory.
@@ -114,9 +208,7 @@ function extractChromaId(filename: string): number | null {
 export async function downloadLolSkinsMetadata(force: boolean = false): Promise<void> {
   if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return
 
-  const response = await fetch(LOL_SKINS_METADATA_URL)
-  const buffer = Buffer.from(await response.arrayBuffer())
-
+  const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
   await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
 }
 
@@ -225,11 +317,25 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
 
     await downloadLolSkinsMetadata(force)
 
-    const response = await fetch(LOL_SKINS_URL)
-    if (!response.ok) throw new Error('Download failed')
-
-    const buffer = Buffer.from(await response.arrayBuffer())
+    const buffer = await downloadUrlWithRetry(LOL_SKINS_URL)
     await decompressZip(buffer, LOL_SKINS_DESTINATION)
+    await organizeLolSkinsStructure()
+  })
+}
+
+/**
+ * This function uses local LOL-SKINS files instead of downloading.
+ * @param localSkinsPath the path to the local skins directory.
+ * @returns {Promise<void>} when the operation is finished.
+ */
+export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
+  return downloadMutex.runExclusive(async () => {
+    if (await locationExists(LOL_SKINS_LOCATION)) await fs.remove(LOL_SKINS_LOCATION)
+
+    await downloadLolSkinsMetadata(true)
+
+    // Copy local skins to the expected location
+    await fs.copy(localSkinsPath, LOL_SKINS_LOCATION)
     await organizeLolSkinsStructure()
   })
 }
