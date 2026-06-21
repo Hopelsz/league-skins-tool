@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 
+import { Champion } from '../types'
 import ImageLoader from '@renderer/components/ImageLoader'
 import SearchIcon from '@renderer/components/svgs/SearchIcon'
 

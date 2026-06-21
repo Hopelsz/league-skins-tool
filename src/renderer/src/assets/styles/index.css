@@ -144,18 +144,6 @@
   color: #a09b8c;
 }
 
-* {
-  box-sizing: border-box;
-  /* Not selectable */
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: -moz-none;
-  -o-user-select: none;
-  user-select: none;
-  font-family: 'Spiegel';
-  color: #a09b8c;
-}
-
 *::-webkit-scrollbar {
   width: 0.35rem;
 }
@@ -546,6 +534,16 @@ svg.cool-border:hover path {
   outline: 0;
 }
 
+.skin-name {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #be9f60;
+  padding: 0.5rem 0.25rem;
+  letter-spacing: 0.05rem;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
 .back-button {
   padding: 0.5rem;
 }
@@ -553,4 +551,13 @@ svg.cool-border:hover path {
 .back-button svg {
   width: 1rem;
   fill: #a09b8c;
+}
+
+/* --------------- WINDOW DRAG REGION --------------- */
+.window-drag-region {
+  -webkit-app-region: drag;
+}
+
+.window-no-drag {
+  -webkit-app-region: no-drag;
 }

@@ -14,6 +14,8 @@ export default function AssetDownloader({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!downloading) return
+
     ;(async (): Promise<void> => {
       try {
         await window.api.downloadLolSkins()
@@ -22,7 +24,7 @@ export default function AssetDownloader({
         setError("Couldn't download assets. Please try again later.")
       }
     })()
-  }, [setDownloading])
+  }, [downloading, setDownloading])
 
   const handleUpdateSkins = async (): Promise<void> => {
     setDownloading(true)

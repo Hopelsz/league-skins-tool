@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 
+import { Champion, Skin } from '../types'
 import { useAlert } from '@renderer/hooks/Alert'
 import ImageLoader from '@renderer/components/ImageLoader'
 import BackIcon from '@renderer/components/svgs/BackIcon'
@@ -16,17 +17,17 @@ type ChromaSelectorProps = {
 function ChromaSelector({ skin }: ChromaSelectorProps): JSX.Element {
   const { setAlert } = useAlert()
 
-  if (!skin.chromas.length || !skin.chromas.every((skin) => skin.colors.length)) return <></>
+  if (!skin.chromas?.length || !skin.chromas.every((chroma) => chroma.colors?.length)) return <></>
 
   return (
     <div className="chroma-container">
       {skin.chromas
-        .filter((chroma) => chroma.colors.length)
+        .filter((chroma) => chroma.colors?.length)
         .map((chroma, i) => (
           <div
             key={chroma.id}
             className="chroma-circle"
-            style={{ background: `linear-gradient(to top right, ${chroma.colors.join(', ')})` }}
+            style={{ background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})` }}
             tabIndex={0}
             role="button"
             onClick={(e) => {
@@ -72,7 +73,7 @@ export default function SkinSelector({ champion, setChampion }: SkinSelectorProp
           flexShrink: 0,
           padding: '1rem',
           paddingTop: '0.5rem',
-          backgroundColor: '#010a13'
+          // backgroundColor: '#010a13'
         }}
       >
         <div
@@ -105,6 +106,7 @@ export default function SkinSelector({ champion, setChampion }: SkinSelectorProp
           >
             <ImageLoader src={skin.image} alt={skin.name} />
             <ChromaSelector skin={skin} />
+            <div className="skin-name">{skin.name}</div>
           </div>
         ))}
       </div>

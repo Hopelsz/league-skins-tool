@@ -165,6 +165,14 @@ async function locationExists(location: string): Promise<boolean> {
 }
 
 /**
+ * This function checks if LOL skins have already been downloaded.
+ * @returns {Promise<boolean>} whether the skins directory exists and has content.
+ */
+export async function checkLolSkinsExist(): Promise<boolean> {
+  return locationExists(LOL_SKINS_LOCATION)
+}
+
+/**
  * This function finds a champion by name in the list of champions.
  * @param championName the name of the champion to find.
  * @param champions the list of champions to search in.

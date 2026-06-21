@@ -12,6 +12,7 @@ const api = {
     ipcRenderer.invoke('downloadLolSkins', force),
   useLocalLolSkins: (localPath: string): Promise<void> =>
     ipcRenderer.invoke('useLocalLolSkins', localPath),
+  checkLolSkinsExist: (): Promise<boolean> => ipcRenderer.invoke('checkLolSkinsExist'),
   listSkins: (): Promise<Skin[]> => ipcRenderer.invoke('listSkins'),
   listChampions: (): Promise<Champion[]> => ipcRenderer.invoke('listChampions'),
   setSkin: (skin: Skin | Chroma): Promise<void> => ipcRenderer.invoke('setSkin', skin),

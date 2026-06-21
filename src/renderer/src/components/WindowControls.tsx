@@ -38,6 +38,7 @@ export default function WindowControls(): JSX.Element {
 
   return (
     <div
+      className="window-no-drag"
       style={{
         position: 'fixed',
         top: 0,
