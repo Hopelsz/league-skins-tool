@@ -34,6 +34,8 @@ export interface Api {
   listSkins: () => Promise<Skin[]>
   listChampions: () => Promise<Champion[]>
   setSkin: (skin: Skin | Chroma) => Promise<void>
+  getCurrentSkinId: () => Promise<string | null>
+  refreshLolSkins: () => Promise<Skin[]>
   minimizeWindow: () => void
   maximizeWindow: () => void
   closeWindow: () => void

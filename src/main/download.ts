@@ -42,7 +42,7 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
       return
     }
 
-    console.log(`[downloadUrl] Starting download from: ${url} (retry #${retryCount}, redirect #${redirectCount})`)
+
     const parsedUrl = new URL(url)
     const options: https.RequestOptions = {
       hostname: parsedUrl.hostname,
@@ -57,12 +57,11 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
     }
 
     const req = https.request(options, (res) => {
-      console.log(`[downloadUrl] Response status: ${res.statusCode} from ${url}`)
+
       
       if (res.statusCode && (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308)) {
         const location = res.headers.location
         if (location) {
-          console.log(`[downloadUrl] Following redirect to: ${location}`)
           resolve(downloadUrlWithRetry(location, redirectCount + 1, retryCount))
         } else {
           reject(new Error(`Redirect without location header: ${url}`))
@@ -72,7 +71,6 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
 
       if (res.statusCode && res.statusCode >= 500) {
         const delay = Math.pow(2, retryCount) * 1000
-        console.log(`[downloadUrl] Server error ${res.statusCode}, retrying in ${delay}ms...`)
         setTimeout(() => {
           resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
         }, delay)
@@ -87,17 +85,13 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
       const chunks: Buffer[] = []
       res.on('data', (chunk) => chunks.push(chunk))
       res.on('end', () => {
-        const totalSize = Buffer.concat(chunks).length
-        console.log(`[downloadUrl] Download complete, size: ${totalSize} bytes`)
         resolve(Buffer.concat(chunks))
       })
     })
 
     req.on('error', (err) => {
-      console.error(`[downloadUrl] Download failed: ${err.message}`)
       const delay = Math.pow(2, retryCount) * 1000
       if (retryCount < 3) {
-        console.log(`[downloadUrl] Retrying in ${delay}ms...`)
         setTimeout(() => {
           resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
         }, delay)
@@ -107,10 +101,8 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
     })
 
     req.on('timeout', () => {
-      console.error(`[downloadUrl] Request timed out`)
       const delay = Math.pow(2, retryCount) * 1000
       if (retryCount < 3) {
-        console.log(`[downloadUrl] Retrying in ${delay}ms...`)
         setTimeout(() => {
           resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
         }, delay)
@@ -183,20 +175,6 @@ function findChampionByName(championName: string, champions: Champion[]): Champi
 }
 
 /**
- * This function finds a skin by name in the list of skins.
- * @param skinName the name of the skin to find.
- * @param championSkins  the list of skins to search in.
- * @returns {Skin | null} the skin if found, otherwise null.
- */
-function findSkinByName(skinName: string, championSkins: Skin[]): Skin | null {
-  return (
-    championSkins.find(
-      (s) => s.name.toLowerCase().replace(':', '') === skinName.toLowerCase().replace(':', '')
-    ) || null
-  )
-}
-
-/**
  * This function extracts the chroma ID from a filename.
  * @param filename the name of the chroma file.
  * @returns {string | null} the chroma ID if found, otherwise null.
@@ -221,23 +199,18 @@ export async function downloadLolSkinsMetadata(force: boolean = false): Promise<
 }
 
 /**
- * This function processes skin files by renaming them to use IDs instead of names.
+ * This function processes skin files (currently just validates the directory).
  * @param championPath the path to the champion directory.
- * @param skins the list of skins to process.
  */
-async function processSkinFiles(championPath: string, skins: Skin[]): Promise<void> {
-  const skinZips = await fs.readdir(championPath, { withFileTypes: true })
+async function processSkinFiles(championPath: string): Promise<void> {
+  const skinFiles = await fs.readdir(championPath, { withFileTypes: true })
 
-  for (const skinZip of skinZips) {
-    if (!skinZip.isFile() || !skinZip.name.endsWith('.zip')) continue
-
-    const skinName = skinZip.name.replace('.zip', '')
-    const skin = findSkinByName(skinName, skins)
-
-    if (!skin) continue
-    const oldPath = path.join(championPath, skinZip.name)
-    const newPath = path.join(championPath, `${skin.id}.fantome`)
-    await fs.rename(oldPath, newPath)
+  for (const skinFile of skinFiles) {
+    if (!skinFile.isFile()) continue
+    const isZip = skinFile.name.endsWith('.zip')
+    const isFantome = skinFile.name.endsWith('.fantome')
+    if (!isZip && !isFantome) continue
+    // Currently no processing needed - files keep their original names
   }
 }
 
@@ -262,7 +235,7 @@ async function processChromaFiles(championPath: string): Promise<void> {
       if (!chromaZipFile.isFile() || !chromaZipFile.name.endsWith('.zip')) continue
 
       const chromaId = extractChromaId(chromaZipFile.name)
-      if (!chromaId) return
+      if (!chromaId) continue
 
       const oldPath = path.join(chromaSkinPath, chromaZipFile.name)
       const newPath = path.join(championPath, `${chromaId}.fantome`)
@@ -274,40 +247,35 @@ async function processChromaFiles(championPath: string): Promise<void> {
 }
 
 /**
- * This function processes a single champion directory and making it use IDs instead of names.
+ * This function processes a single champion directory.
  * @param championName the name of the champion directory.
  * @param champions the list of champions.
- * @param skins the list of skins.
  * @returns {Promise<void>} when the operation is finished.
  */
 async function processChampionDirectory(
   championName: string,
-  champions: Champion[],
-  skins: Skin[]
+  champions: Champion[]
 ): Promise<void> {
   const champion = findChampionByName(championName, champions)
 
   if (!champion) return
 
-  const championSkins = skins.filter((s) => s.championId === champion.id)
-  const oldPath = path.join(LOL_SKINS_LOCATION, championName)
-  const newPath = path.join(LOL_SKINS_LOCATION, champion.id.toString())
-
-  await fs.move(oldPath, newPath)
-  await processSkinFiles(newPath, championSkins)
-  await processChromaFiles(newPath)
+  // Process using original directory name (keeping Chinese names)
+  const championDir = path.join(LOL_SKINS_LOCATION, championName)
+  await processSkinFiles(championDir)
+  await processChromaFiles(championDir)
 }
 
 /**
- * This function organizes the LOL-SKINS directory structure by renaming directories and files to use IDs
+ * This function organizes the LOL-SKINS directory structure.
  * @returns {Promise<void>} when the operation is finished.
  */
 async function organizeLolSkinsStructure(): Promise<void> {
-  const [champions, skins] = await Promise.all([listChampions(), listSkins()])
+  const champions = await listChampions()
   const subdirectories = await fs.readdir(LOL_SKINS_LOCATION, { withFileTypes: true })
 
   for (const subdir of subdirectories)
-    if (subdir.isDirectory()) await processChampionDirectory(subdir.name, champions, skins)
+    if (subdir.isDirectory()) await processChampionDirectory(subdir.name, champions)
 }
 
 /**
@@ -346,4 +314,32 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
     await fs.copy(localSkinsPath, LOL_SKINS_LOCATION)
     await organizeLolSkinsStructure()
   })
+}
+
+/**
+ * This function returns skins that have corresponding files on disk.
+ * @returns {Promise<Skin[]>} the list of skins that exist on disk.
+ */
+export async function getExistingSkins(): Promise<Skin[]> {
+  const skins = await listSkins()
+  const existingSkins: Skin[] = []
+
+  for (const skin of skins) {
+    const championDir = path.join(LOL_SKINS_LOCATION, skin.championName)
+    if (!(await locationExists(championDir))) continue
+
+    const files = await fs.readdir(championDir)
+    const normalizedSkinName = skin.name.toLowerCase().replace(/[:\s'"]/g, '').replace(/　/g, '')
+
+    for (const file of files) {
+      const fileNameWithoutExt = file.replace(/\.(zip|fantome)$/, '')
+      const normalizedFileName = fileNameWithoutExt.toLowerCase().replace(/[:\s'"]/g, '').replace(/　/g, '')
+      if (normalizedFileName.includes(normalizedSkinName) || normalizedSkinName.includes(normalizedFileName)) {
+        existingSkins.push(skin)
+        break
+      }
+    }
+  }
+
+  return existingSkins
 }

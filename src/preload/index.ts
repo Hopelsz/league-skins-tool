@@ -16,6 +16,8 @@ const api = {
   listSkins: (): Promise<Skin[]> => ipcRenderer.invoke('listSkins'),
   listChampions: (): Promise<Champion[]> => ipcRenderer.invoke('listChampions'),
   setSkin: (skin: Skin | Chroma): Promise<void> => ipcRenderer.invoke('setSkin', skin),
+  getCurrentSkinId: (): Promise<string | null> => ipcRenderer.invoke('getCurrentSkinId'),
+  refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),
   // Window controls
   minimizeWindow: (): void => ipcRenderer.send('window-minimize'),
   maximizeWindow: (): void => ipcRenderer.send('window-maximize'),

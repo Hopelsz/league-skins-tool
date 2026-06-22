@@ -19,9 +19,42 @@ import {
   TEMP_DIR
 } from './constants'
 import type { Skin, Chroma } from './metadata'
-import { getLeaguePath } from './config'
+import { getLeaguePath, setCurrentSkinId } from './config'
 
 let runningProcess: ChildProcess | null = null
+
+/**
+ * This function finds a skin file by name in the champion directory.
+ * @param championName the champion name (directory name).
+ * @param skinName the skin name to search for.
+ * @returns the path to the skin file, or null if not found.
+ */
+async function findSkinFileByName(championName: string, skinName: string): Promise<string | null> {
+  const championDir = path.join(LOL_SKINS_LOCATION, championName)
+  
+  try {
+    await fs.access(championDir)
+  } catch {
+    return null
+  }
+  
+  const entries = await fs.readdir(championDir, { withFileTypes: true })
+  const normalizedSkinName = skinName.toLowerCase().replace(/[:\s'"]/g, '').replace(/　/g, '')
+
+  for (const entry of entries) {
+    // Skip directories, only process files
+    if (entry.isDirectory()) continue
+    // Skip files without valid extensions
+    if (!entry.name.endsWith('.zip') && !entry.name.endsWith('.fantome')) continue
+
+    const fileNameWithoutExt = entry.name.replace(/\.(zip|fantome)$/, '')
+    const normalizedFileName = fileNameWithoutExt.toLowerCase().replace(/[:\s'"]/g, '').replace(/　/g, '')
+    if (normalizedFileName.includes(normalizedSkinName) || normalizedSkinName.includes(normalizedFileName)) {
+      return path.join(championDir, entry.name)
+    }
+  }
+  return null
+}
 
 /**
  * This function sets the skin of a champion in league of legends.
@@ -31,7 +64,18 @@ let runningProcess: ChildProcess | null = null
 export async function setSkin(skin: Skin | Chroma): Promise<void> {
   const skinsDirDestination = path.join(TEMP_DIR, 'skins')
   const overlayDirDestination = path.join(TEMP_DIR, 'overlay')
-  const skinPath = path.join(LOL_SKINS_LOCATION, skin.championId.toString(), `${skin.id}.fantome`)
+  
+  if (!skin.championName) {
+    throw new Error(`Skin/Chroma does not have championName: ${JSON.stringify(skin)}`)
+  }
+  
+  const isSkin = 'name' in skin
+  const searchName = isSkin ? skin.name : 'chroma'
+  
+  const skinPath = await findSkinFileByName(skin.championName, searchName)
+  if (!skinPath) {
+    throw new Error(`Skin file not found for: ${searchName} in champion: ${skin.championName}`)
+  }
   const gamePath = path.join(await getLeaguePath(), 'Game')
 
   if (runningProcess) {
@@ -42,18 +86,18 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
   await fs.remove(TEMP_DIR)
   await fs.ensureDir(TEMP_DIR)
 
-  console.log(`Setting skin ${skin.id} for champion ${skin.championId}`)
-
   await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${path.join(skinsDirDestination, 'skin')}" --game:"${gamePath}"`
+    `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${path.join(skinsDirDestination, 'skin')}" --game:"${gamePath}"`,
   )
 
   await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"skin"`
+    `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"skin"`,
   )
 
   runningProcess = spawn(
-    `${CSLOL_MANAGER_EXECUTABLE} runoverlay "${overlayDirDestination}" "${CSLOL_MANAGER_CONFIG}" --game:"${gamePath}"`,
-    { shell: true }
+    CSLOL_MANAGER_EXECUTABLE,
+    ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
   )
+
+  await setCurrentSkinId(String(skin.id))
 }

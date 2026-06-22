@@ -7,11 +7,15 @@ import AssetDownloader from '@renderer/components/AssetDownloader'
 import ChampionSelector from '@renderer/components/ChampionSelector'
 import SkinSelector from '@renderer/components/SkinSelector'
 import WindowControls from '@renderer/components/WindowControls'
+import OffCanvas from '@renderer/components/OffCanvas'
+import { useAlert } from '@renderer/hooks/Alert'
 
 export default function App(): JSX.Element {
   const [settingPath, setSettingPath] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [selectedChampion, setSelectedChampion] = useState<Champion | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const { setAlert } = useAlert()
 
   // Check if skins need to be downloaded when path is set
   useEffect(() => {
@@ -34,6 +38,29 @@ export default function App(): JSX.Element {
     setSettingPath(false)
   }
 
+  const handleChangePath = async (): Promise<void> => {
+    const success = await window.api.askAndSetLeaguePath()
+    if (success) {
+      setAlert('游戏路径更改成功！')
+      setShowSettings(false)
+    } else {
+      setAlert('路径无效或更改失败')
+    }
+  }
+
+  const handleSelectLocalSkins = async (): Promise<void> => {
+    const localPath = await window.api.askAndSelectLocalSkins()
+    if (localPath) {
+      try {
+        await window.api.useLocalLolSkins(localPath)
+        setAlert('本地 skins 导入成功！')
+        setShowSettings(false)
+      } catch (error) {
+        setAlert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      }
+    }
+  }
+
   return (
     <>
       <div 
@@ -53,6 +80,37 @@ export default function App(): JSX.Element {
       ) : (
         <Providers>
           <AssetDownloader downloading={downloading} setDownloading={setDownloading} />
+          {/* 设置按钮 */}
+          <button
+            onClick={() => setShowSettings(true)}
+            style={{
+              position: 'fixed',
+              top: '45px',
+              right: '10px',
+              zIndex: 9999,
+              padding: '8px 16px',
+              background: 'transparent',
+              border: '1px solid #c8a97e',
+              color: '#c8a97e',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            设置
+          </button>
+          {/* 设置面板 */}
+          <OffCanvas
+            active={showSettings}
+            setActive={setShowSettings}
+            displayExitButton={true}
+            exitButtonText="关闭"
+          >
+            <h3>设置</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+              <button onClick={handleChangePath}>更改游戏路径</button>
+              <button onClick={handleSelectLocalSkins}>使用本地 skins</button>
+            </div>
+          </OffCanvas>
           {/* Main content area with fixed header */}
           <div
             style={{

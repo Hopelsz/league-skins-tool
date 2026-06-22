@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Champion } from '../types'
 import ImageLoader from '@renderer/components/ImageLoader'
 import SearchIcon from '@renderer/components/svgs/SearchIcon'
+import icon from '../assets/icon.png'
 
 type ChampionSelectorProps = {
   champion: Champion | null
@@ -40,11 +41,13 @@ export default function ChampionSelector({
         style={{
           flexShrink: 0,
           padding: '1rem',
-          paddingTop: '0.5rem',
-          // backgroundColor: '#010a13'
+          paddingTop: '0.5rem'
         }}
       >
-        <h1 style={{ margin: '0 0 1rem 0' }}>英雄联盟皮肤管理器</h1>
+        <h1 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          <img src={icon} alt="" style={{ width: '36px', height: '36px', display: 'block' }} />
+          英雄联盟皮肤管理器
+        </h1>
         {/* Search Container */}
         <div
           id="search-container"

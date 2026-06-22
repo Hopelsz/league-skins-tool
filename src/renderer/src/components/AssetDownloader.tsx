@@ -21,7 +21,7 @@ export default function AssetDownloader({
         await window.api.downloadLolSkins()
         setDownloading(false)
       } catch {
-        setError("Couldn't download assets. Please try again later.")
+        setError("无法下载资源，请稍后重试。")
       }
     })()
   }, [downloading, setDownloading])
@@ -32,15 +32,23 @@ export default function AssetDownloader({
     setDownloading(false)
   }
 
+  const handleClose = () => {
+    setError(null)
+    setDownloading(false)
+  }
+
   return (
     <>
-      <OffCanvas active={downloading} setActive={setDownloading} compact displayExitButton={false}>
+      <OffCanvas active={downloading || !!error} setActive={handleClose} compact displayExitButton={!!error} exitButtonText={error ? '关闭' : 'done'}>
         {error ? (
-          <h4> {error} </h4>
+          <div style={{ textAlign: 'center' }}>
+            <h4> {error} </h4>
+            <p>请检查网络连接后重试</p>
+          </div>
         ) : (
           <>
-            <h4> Please wait for binaries and assets to be downloaded. </h4>
-            <p> This might take a while... </p>
+            <h4> 正在下载二进制文件和资源，请稍候... </h4>
+            <p> 这可能需要一些时间... </p>
             <Loader />
           </>
         )}

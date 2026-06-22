@@ -27,6 +27,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     icon: icon,
     frame: false,
+    resizable: false,
     backgroundColor: '#000000ff',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

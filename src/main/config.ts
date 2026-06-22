@@ -11,7 +11,8 @@ import fs from 'fs-extra'
 import { CONFIG_PATH } from './constants'
 
 const DEFAULT_CONFIG = {
-  leaguePath: ''
+  leaguePath: '',
+  currentSkinId: null as string | null
 }
 
 /**
@@ -53,33 +54,26 @@ export async function isLeaguePathValid(leaguePath: string): Promise<boolean> {
 
   const normalizedPath = leaguePath.toLowerCase()
   const isExeFile = normalizedPath.endsWith('.exe')
-  const isGameDir = normalizedPath.endsWith('game') || normalizedPath.endsWith('game\\')
-
+  const isGameDir = normalizedPath.endsWith('Game') || normalizedPath.endsWith('game\\')
   let checkPath = leaguePath
   if (isExeFile) {
     checkPath = path.dirname(leaguePath)
   }
 
-  console.log(`isLeaguePathValid: '${leaguePath}' -> checkPath: '${checkPath}', isGameDir: ${isGameDir}`)
-
   if (isGameDir || checkPath.toLowerCase().endsWith('game')) {
     const lolPath = path.join(checkPath, 'League of Legends.exe')
     const lcPath = path.join(checkPath, 'LeagueClient.exe')
-    console.log(`Checking Game dir paths: '${lolPath}' and '${lcPath}'`)
     const lolExists = await fs.pathExists(lolPath)
     const lcExists = await fs.pathExists(lcPath)
-    console.log(`lolExists: ${lolExists}, lcExists: ${lcExists}`)
     return lolExists || lcExists
   }
 
   const gameLolPath = path.join(checkPath, 'Game', 'League of Legends.exe')
   const gameLcPath = path.join(checkPath, 'Game', 'LeagueClient.exe')
   const rootLcPath = path.join(checkPath, 'LeagueClient.exe')
-  console.log(`Checking root dir paths: '${gameLolPath}', '${gameLcPath}', '${rootLcPath}'`)
   const gameLolExists = await fs.pathExists(gameLolPath)
   const gameLcExists = await fs.pathExists(gameLcPath)
   const rootLcExists = await fs.pathExists(rootLcPath)
-  console.log(`gameLolExists: ${gameLolExists}, gameLcExists: ${gameLcExists}, rootLcExists: ${rootLcExists}`)
   return gameLolExists || gameLcExists || rootLcExists
 }
 
@@ -112,25 +106,33 @@ export async function setLeaguePath(leaguePath: string): Promise<boolean> {
 export async function askAndSetLeaguePath(): Promise<boolean> {
   const { BrowserWindow } = await import('electron')
   const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: '选择英雄联盟安装路径'
+    // const result = await dialog.showOpenDialog(mainWindow, {
+    // properties: ['openDirectory', 'openFile'],
+    // title: '选择英雄联盟安装路径',
+  // 首先尝试选择exe文件
+  let result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: '选择 League of Legends.exe 或 LeagueClient.exe',
+    filters: [{ name: 'Executable', extensions: ['exe'] }]
   })
 
-  if (result.canceled) return false
-
-  const filePath = result.filePaths[0]
-  console.log(`Selected path: ${filePath}`)
+  let filePath = ''
+  if (result.canceled || result.filePaths.length === 0) {
+    // 用户没选择文件，则让用户选择文件夹
+    result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: '选择英雄联盟安装路径'
+    })
+    if (result.canceled || result.filePaths.length === 0) return false
+    filePath = result.filePaths[0]
+  } else {
+    filePath = result.filePaths[0]
+  }
 
   const isValid = await isLeaguePathValid(filePath)
-  console.log(`Path valid: ${isValid}`)
-
   if (!isValid) return false
 
   const finalPath = await normalizeLeaguePath(filePath)
-  console.log(`Final path to save: ${finalPath}`)
-
   await setConfigValue('leaguePath', finalPath)
   return true
 }
@@ -169,10 +171,13 @@ export async function isCurrentLeaguePathValid(): Promise<boolean> {
   return isLeaguePathValid(await getLeaguePath())
 }
 
-// Create the config file if it doesn't exist.
-configExists().then(async (exists) => {
-  if (!exists) await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
-})
+export async function getCurrentSkinId(): Promise<string | null> {
+  return getConfigValue('currentSkinId')
+}
+
+export async function setCurrentSkinId(skinId: string | null): Promise<void> {
+  await setConfigValue('currentSkinId', skinId ?? '')
+}
 
 /**
  * This function asks the user to select the local skins folder.
@@ -190,7 +195,10 @@ export async function askAndSelectLocalSkins(): Promise<string | null> {
   if (result.canceled) return null
 
   const filePath = result.filePaths[0]
-  console.log(`Selected skins path: ${filePath}`)
-
   return filePath
 }
+
+// Create the config file if it doesn't exist.
+configExists().then(async (exists) => {
+  if (!exists) await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+})

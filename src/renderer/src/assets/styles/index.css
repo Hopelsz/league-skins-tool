@@ -400,12 +400,14 @@ svg.cool-border:hover path {
 .alert {
   position: fixed;
   display: flex;
-  bottom: 2rem;
-  left: 2rem;
+  bottom: 12rem;
+  left: 0;
+  right: 0;
   z-index: 100;
   background: linear-gradient(45deg, rgba(9, 20, 40, 1) 0%, rgba(0, 0, 0, 1) 100%);
   width: 600px;
   max-width: 60%;
+  margin: 0 auto;
 }
 
 .alert-content {
