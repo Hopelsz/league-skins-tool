@@ -15,11 +15,11 @@ const promisifiedExec = util.promisify(exec)
 import {
   CSLOL_MANAGER_EXECUTABLE,
   CSLOL_MANAGER_CONFIG,
-  LOL_SKINS_LOCATION,
   TEMP_DIR
 } from './constants'
 import type { Skin, Chroma } from './metadata'
 import { getLeaguePath, setCurrentSkinId } from './config'
+import { getSkinsLocation } from './download'
 
 let runningProcess: ChildProcess | null = null
 
@@ -30,7 +30,8 @@ let runningProcess: ChildProcess | null = null
  * @returns the path to the skin file, or null if not found.
  */
 async function findSkinFileByName(championName: string, skinName: string): Promise<string | null> {
-  const championDir = path.join(LOL_SKINS_LOCATION, championName)
+  const skinsLocation = await getSkinsLocation()
+  const championDir = path.join(skinsLocation, championName)
   
   try {
     await fs.access(championDir)
@@ -69,8 +70,7 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     throw new Error(`Skin/Chroma does not have championName: ${JSON.stringify(skin)}`)
   }
   
-  const isSkin = 'name' in skin
-  const searchName = isSkin ? skin.name : 'chroma'
+  const searchName = skin.name
   
   const skinPath = await findSkinFileByName(skin.championName, searchName)
   if (!skinPath) {
@@ -100,4 +100,16 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
   )
 
   await setCurrentSkinId(String(skin.id))
+}
+
+/**
+ * This function disables the current skin by stopping the overlay process.
+ * @returns {Promise<void>} when the operation is finished.
+ */
+export async function disableSkin(): Promise<void> {
+  if (runningProcess) {
+    runningProcess.kill()
+    runningProcess = null
+  }
+  await setCurrentSkinId('')
 }

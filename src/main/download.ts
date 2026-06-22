@@ -19,6 +19,7 @@ import {
   LOL_SKINS_METADATA_URL,
   LOL_SKINS_METADATA_LOCATION
 } from './constants'
+import { getConfigValue, setConfigValue } from './config'
 
 import {
   type Champion,
@@ -29,6 +30,37 @@ import {
 } from './metadata'
 
 const downloadMutex = new Mutex()
+let downloadCancelled = false
+
+/**
+ * 取消正在进行的下载
+ */
+export function cancelDownloadLolSkins(): void {
+  downloadCancelled = true
+}
+
+/**
+ * 重置取消状态
+ */
+function resetDownloadCancelled(): void {
+  downloadCancelled = false
+}
+
+/**
+ * 检查下载是否已取消
+ */
+function isDownloadCancelled(): boolean {
+  return downloadCancelled
+}
+
+/**
+ * 获取皮肤文件夹的实际位置
+ * 如果用户配置了自定义路径，则使用配置的路径，否则使用默认位置
+ */
+export async function getSkinsLocation(): Promise<string> {
+  const customPath = await getConfigValue('skinsPath')
+  return customPath || LOL_SKINS_LOCATION
+}
 
 async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retryCount: number = 0): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -161,7 +193,8 @@ async function locationExists(location: string): Promise<boolean> {
  * @returns {Promise<boolean>} whether the skins directory exists and has content.
  */
 export async function checkLolSkinsExist(): Promise<boolean> {
-  return locationExists(LOL_SKINS_LOCATION)
+  const skinsLocation = await getSkinsLocation()
+  return locationExists(skinsLocation)
 }
 
 /**
@@ -254,14 +287,15 @@ async function processChromaFiles(championPath: string): Promise<void> {
  */
 async function processChampionDirectory(
   championName: string,
-  champions: Champion[]
+  champions: Champion[],
+  skinsLocation: string
 ): Promise<void> {
   const champion = findChampionByName(championName, champions)
 
   if (!champion) return
 
   // Process using original directory name (keeping Chinese names)
-  const championDir = path.join(LOL_SKINS_LOCATION, championName)
+  const championDir = path.join(skinsLocation, championName)
   await processSkinFiles(championDir)
   await processChromaFiles(championDir)
 }
@@ -271,11 +305,12 @@ async function processChampionDirectory(
  * @returns {Promise<void>} when the operation is finished.
  */
 async function organizeLolSkinsStructure(): Promise<void> {
+  const skinsLocation = await getSkinsLocation()
   const champions = await listChampions()
-  const subdirectories = await fs.readdir(LOL_SKINS_LOCATION, { withFileTypes: true })
+  const subdirectories = await fs.readdir(skinsLocation, { withFileTypes: true })
 
   for (const subdir of subdirectories)
-    if (subdir.isDirectory()) await processChampionDirectory(subdir.name, champions)
+    if (subdir.isDirectory()) await processChampionDirectory(subdir.name, champions, skinsLocation)
 }
 
 /**
@@ -287,13 +322,30 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
   // The lock is required to prevent multiple organization starting at the same time.
   // This could lead to race conditions in renames etc.
   return downloadMutex.runExclusive(async () => {
+    // 重置取消状态
+    resetDownloadCancelled()
+    
+    // 下载时清除自定义路径配置，使用默认位置
+    await setConfigValue('skinsPath', '')
+    
     if (!force && (await locationExists(LOL_SKINS_LOCATION))) return
 
     if (await locationExists(LOL_SKINS_LOCATION)) await fs.remove(LOL_SKINS_LOCATION)
 
     await downloadLolSkinsMetadata(force)
+    
+    // 检查是否取消
+    if (isDownloadCancelled()) {
+      throw new Error('下载已取消')
+    }
 
     const buffer = await downloadUrlWithRetry(LOL_SKINS_URL)
+    
+    // 检查是否取消
+    if (isDownloadCancelled()) {
+      throw new Error('下载已取消')
+    }
+    
     await decompressZip(buffer, LOL_SKINS_DESTINATION)
     await organizeLolSkinsStructure()
   })
@@ -301,17 +353,19 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
 
 /**
  * This function uses local LOL-SKINS files instead of downloading.
+ * It saves the user's custom skins path to config and uses it directly.
  * @param localSkinsPath the path to the local skins directory.
  * @returns {Promise<void>} when the operation is finished.
  */
 export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
   return downloadMutex.runExclusive(async () => {
-    if (await locationExists(LOL_SKINS_LOCATION)) await fs.remove(LOL_SKINS_LOCATION)
-
+    // 保存用户选择的皮肤路径到配置
+    await setConfigValue('skinsPath', localSkinsPath)
+    
+    // 下载/更新元数据
     await downloadLolSkinsMetadata(true)
-
-    // Copy local skins to the expected location
-    await fs.copy(localSkinsPath, LOL_SKINS_LOCATION)
+    
+    // 组织皮肤结构
     await organizeLolSkinsStructure()
   })
 }
@@ -321,11 +375,12 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
  * @returns {Promise<Skin[]>} the list of skins that exist on disk.
  */
 export async function getExistingSkins(): Promise<Skin[]> {
+  const skinsLocation = await getSkinsLocation()
   const skins = await listSkins()
   const existingSkins: Skin[] = []
 
   for (const skin of skins) {
-    const championDir = path.join(LOL_SKINS_LOCATION, skin.championName)
+    const championDir = path.join(skinsLocation, skin.championName)
     if (!(await locationExists(championDir))) continue
 
     const files = await fs.readdir(championDir)

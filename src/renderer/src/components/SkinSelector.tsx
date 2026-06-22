@@ -13,9 +13,13 @@ export type SkinSelectorProps = {
 
 type ChromaSelectorProps = {
   skin: Skin
+  currentSkinId: string | null
+  setCurrentSkinId: (id: string | null) => void
+  isLoading: boolean
+  setIsLoading: (loading: boolean) => void
 }
 
-function ChromaSelector({ skin }: ChromaSelectorProps): JSX.Element {
+function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setIsLoading }: ChromaSelectorProps): JSX.Element {
   const { setAlert } = useAlert()
 
   if (!skin.chromas?.length || !skin.chromas.every((chroma) => chroma.colors?.length)) return <></>
@@ -24,20 +28,41 @@ function ChromaSelector({ skin }: ChromaSelectorProps): JSX.Element {
     <div className="chroma-container">
       {skin.chromas
         .filter((chroma) => chroma.colors?.length)
-        .map((chroma, i) => (
-          <div
-            key={chroma.id}
-            className="chroma-circle"
-            style={{ background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})` }}
-            tabIndex={0}
-            role="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              window.api.setSkin(chroma)
-              setAlert(`${skin.name} chroma #${i + 1} selected successfully!`)
-            }}
-          />
-        ))}
+        .map((chroma, i) => {
+          const isChromaSelected = String(chroma.id) === currentSkinId
+          return (
+            <div
+              key={chroma.id}
+              className={`chroma-circle ${isChromaSelected ? 'selected' : ''}`}
+              style={{ background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})` }}
+              tabIndex={0}
+              role="button"
+              onClick={async (e) => {
+                e.stopPropagation()
+                if (isLoading) return
+                setIsLoading(true)
+                try {
+                  if (isChromaSelected) {
+                    // 取消应用当前皮肤
+                    await window.api.disableSkin()
+                    setCurrentSkinId(null)
+                    setAlert(`${skin.name} chroma #${i + 1} 已取消应用！`)
+                    return
+                  }
+                  await window.api.setSkin(chroma)
+                  setCurrentSkinId(String(chroma.id))
+                  setAlert(`${skin.name} chroma #${i + 1} selected successfully!`)
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+            >
+              {isChromaSelected && (
+                <span className="chroma-checkmark">✓</span>
+              )}
+            </div>
+          )
+        })}
     </div>
   )
 }
@@ -45,6 +70,7 @@ function ChromaSelector({ skin }: ChromaSelectorProps): JSX.Element {
 export default function SkinSelector({ champion, setChampion, refreshTrigger = 0 }: SkinSelectorProps): JSX.Element {
   const [allSkins, setAllSkins] = useState<Skin[]>([])
   const [currentSkinId, setCurrentSkinId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const { setAlert } = useAlert()
 
   // Fetch skins when component mounts or refresh is triggered
@@ -59,6 +85,12 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
 
   const championSkins =
     champion === null ? [] : allSkins.filter((skin) => skin.championId === champion.id)
+
+  // 检查皮肤或任意炫彩是否被选中的辅助函数
+  const isSkinOrChromaApplied = (skin: Skin): boolean => {
+    if (String(skin.id) === currentSkinId) return true
+    return skin.chromas?.some(chroma => String(chroma.id) === currentSkinId) ?? false
+  }
 
   if (champion === null) return <></>
 
@@ -97,9 +129,45 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%'
+        height: '100%',
+        position: 'relative'
       }}
     >
+      {/* Global Loading Overlay */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div
+              style={{
+                width: '3rem',
+                height: '3rem',
+                border: '3px solid #c8a97e',
+                borderTopColor: 'transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}
+            />
+            <span style={{ color: '#c8a97e', fontSize: '1.2rem', fontWeight: 'bold' }}>
+              正在应用皮肤...
+            </span>
+          </div>
+        </div>
+      )}
+      
       {/* Fixed Header */}
       <div
         style={{
@@ -123,23 +191,32 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
             className="skin-card"
             tabIndex={0}
             role="button"
-            onClick={() => {
-              if (String(skin.id) === currentSkinId) {
-                setAlert('皮肤已应用！')
-                return
+            onClick={async () => {
+              if (isLoading) return
+              setIsLoading(true)
+              try {
+                if (String(skin.id) === currentSkinId) {
+                  // 取消应用当前皮肤
+                  await window.api.disableSkin()
+                  setCurrentSkinId(null)
+                  setAlert(`${skin.name} 已取消应用！`)
+                  return
+                }
+                await window.api.setSkin(skin)
+                setCurrentSkinId(String(skin.id))
+                setAlert(`${skin.name} selected successfully!`)
+              } finally {
+                setIsLoading(false)
               }
-              window.api.setSkin(skin)
-              setCurrentSkinId(String(skin.id))
-              setAlert(`${skin.name} selected successfully!`)
             }}
             style={{
-              outline: String(skin.id) === currentSkinId ? '3px solid #c8a97e' : undefined,
-              outlineOffset: String(skin.id) === currentSkinId ? '2px' : undefined
+              outline: isSkinOrChromaApplied(skin) ? '3px solid #c8a97e' : undefined,
+              outlineOffset: isSkinOrChromaApplied(skin) ? '2px' : undefined
             }}
           >
             <div style={{ position: 'relative' }}>
               <ImageLoader src={skin.image} alt={skin.name} />
-              {String(skin.id) === currentSkinId && (
+              {isSkinOrChromaApplied(skin) && (
                 <div
                   style={{
                     position: 'absolute',
@@ -160,7 +237,7 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
                 </div>
               )}
             </div>
-            <ChromaSelector skin={skin} />
+            <ChromaSelector skin={skin} currentSkinId={currentSkinId} setCurrentSkinId={setCurrentSkinId} isLoading={isLoading} setIsLoading={setIsLoading} />
             <div className="skin-name">{skin.name}</div>
           </div>
         ))}

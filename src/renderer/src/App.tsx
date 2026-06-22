@@ -8,14 +8,22 @@ import ChampionSelector from '@renderer/components/ChampionSelector'
 import SkinSelector from '@renderer/components/SkinSelector'
 import WindowControls from '@renderer/components/WindowControls'
 import OffCanvas from '@renderer/components/OffCanvas'
+import RefreshButton from '@renderer/components/RefreshButton'
+import SettingsButton from '@renderer/components/SettingsButton'
 import { useAlert } from '@renderer/hooks/Alert'
+import { useConfirm } from '@renderer/hooks/Confirm'
 
 export default function App(): JSX.Element {
   const [settingPath, setSettingPath] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [selectedChampion, setSelectedChampion] = useState<Champion | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [importingSkins, setImportingSkins] = useState(false)
+  const [importSuccess, setImportSuccess] = useState(false)
+  const [changePathSuccess, setChangePathSuccess] = useState(false)
   const { setAlert } = useAlert()
+  const { setConfirmProps } = useConfirm()
 
   // Check if skins need to be downloaded when path is set
   useEffect(() => {
@@ -41,9 +49,8 @@ export default function App(): JSX.Element {
   const handleChangePath = async (): Promise<void> => {
     const success = await window.api.askAndSetLeaguePath()
     if (success) {
-      setAlert('游戏路径更改成功！')
-      setShowSettings(false)
-    } else {
+      setChangePathSuccess(true)
+    } else if (success === false) {
       setAlert('路径无效或更改失败')
     }
   }
@@ -51,13 +58,35 @@ export default function App(): JSX.Element {
   const handleSelectLocalSkins = async (): Promise<void> => {
     const localPath = await window.api.askAndSelectLocalSkins()
     if (localPath) {
+      setImportSuccess(false)
+      setImportingSkins(true)
       try {
         await window.api.useLocalLolSkins(localPath)
-        setAlert('本地 skins 导入成功！')
-        setShowSettings(false)
+        setRefreshTrigger((prev) => prev + 1)
+        setImportSuccess(true)
       } catch (error) {
         setAlert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      } finally {
+        setImportingSkins(false)
       }
+    }
+  }
+
+  const handleUpdateSkins = (): void => {
+    setConfirmProps({
+      title: 'Skins Update',
+      message: 'Are you sure you want to download the latest skins?',
+      onConfirm: () => setDownloading(true)
+    })
+  }
+
+  const handleRefresh = async (): Promise<void> => {
+    try {
+      await window.api.refreshLolSkins()
+      setRefreshTrigger((prev) => prev + 1)
+      setAlert('皮肤列表刷新成功！')
+    } catch (error) {
+      setAlert(`刷新失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
 
@@ -74,43 +103,65 @@ export default function App(): JSX.Element {
           zIndex: 9998
         }}
       />
-      <WindowControls />
+      <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {settingPath ? (
         <PathSetter ready={handlePathReady} />
       ) : (
         <Providers>
-          <AssetDownloader downloading={downloading} setDownloading={setDownloading} />
-          {/* 设置按钮 */}
-          <button
-            onClick={() => setShowSettings(true)}
-            style={{
-              position: 'fixed',
-              top: '45px',
-              right: '10px',
-              zIndex: 9999,
-              padding: '8px 16px',
-              background: 'transparent',
-              border: '1px solid #c8a97e',
-              color: '#c8a97e',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            设置
-          </button>
+          <AssetDownloader 
+            downloading={downloading} 
+            setDownloading={setDownloading} 
+            onLocalImport={handleSelectLocalSkins}
+          />
           {/* 设置面板 */}
           <OffCanvas
             active={showSettings}
             setActive={setShowSettings}
             displayExitButton={true}
             exitButtonText="关闭"
+            className="settings-panel"
           >
-            <h3>设置</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-              <button onClick={handleChangePath}>更改游戏路径</button>
-              <button onClick={handleSelectLocalSkins}>使用本地 skins</button>
+            <div className="settings-header">
+              <h3>设置</h3>
+            </div>
+            <div className="settings-content">
+              <div className="settings-section">
+                <h4>游戏设置</h4>
+                <SettingsButton
+                  onClick={handleChangePath}
+                  isLoading={false}
+                  isSuccess={changePathSuccess}
+                  icon="folder"
+                  title="更改游戏路径"
+                  description="修改英雄联盟安装目录"
+                />
+                <SettingsButton
+                  onClick={handleSelectLocalSkins}
+                  isLoading={importingSkins}
+                  isSuccess={importSuccess}
+                  icon="folder"
+                  title="使用本地 skins"
+                  description="导入本地皮肤资源文件"
+                />
+              </div>
+              <div className="settings-section">
+                <h4>更新</h4>
+                <div className="settings-item" onClick={handleUpdateSkins}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8aa6e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                    <path d="M16 21h5v-5" />
+                  </svg>
+                  <div className="settings-item-text">
+                    <span className="settings-item-title">更新皮肤资源</span>
+                    <span className="settings-item-desc">下载最新的皮肤资源文件</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </OffCanvas>
+          <RefreshButton onClick={handleRefresh} />
           {/* Main content area with fixed header */}
           <div
             style={{
@@ -138,7 +189,7 @@ export default function App(): JSX.Element {
                 champion={selectedChampion}
                 setChampion={setSelectedChampion}
               />
-              <SkinSelector champion={selectedChampion} setChampion={setSelectedChampion} />
+              <SkinSelector champion={selectedChampion} setChampion={setSelectedChampion} refreshTrigger={refreshTrigger} />
             </div>
           </div>
         </Providers>

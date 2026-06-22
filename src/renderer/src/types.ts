@@ -29,11 +29,13 @@ export interface Api {
   askAndSetLeaguePath: () => Promise<boolean>
   askAndSelectLocalSkins: () => Promise<string | null>
   downloadLolSkins: (force?: boolean) => Promise<void>
+  cancelDownloadLolSkins: () => Promise<void>
   useLocalLolSkins: (localPath: string) => Promise<void>
   checkLolSkinsExist: () => Promise<boolean>
   listSkins: () => Promise<Skin[]>
   listChampions: () => Promise<Champion[]>
   setSkin: (skin: Skin | Chroma) => Promise<void>
+  disableSkin: () => Promise<void>
   getCurrentSkinId: () => Promise<string | null>
   refreshLolSkins: () => Promise<Skin[]>
   minimizeWindow: () => void

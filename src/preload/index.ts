@@ -10,12 +10,14 @@ const api = {
   downloadCsLolManager: (): Promise<void> => ipcRenderer.invoke('downloadCsLolManager'),
   downloadLolSkins: (force: boolean = false): Promise<void> =>
     ipcRenderer.invoke('downloadLolSkins', force),
+  cancelDownloadLolSkins: (): Promise<void> => ipcRenderer.invoke('cancelDownloadLolSkins'),
   useLocalLolSkins: (localPath: string): Promise<void> =>
     ipcRenderer.invoke('useLocalLolSkins', localPath),
   checkLolSkinsExist: (): Promise<boolean> => ipcRenderer.invoke('checkLolSkinsExist'),
   listSkins: (): Promise<Skin[]> => ipcRenderer.invoke('listSkins'),
   listChampions: (): Promise<Champion[]> => ipcRenderer.invoke('listChampions'),
   setSkin: (skin: Skin | Chroma): Promise<void> => ipcRenderer.invoke('setSkin', skin),
+  disableSkin: (): Promise<void> => ipcRenderer.invoke('disableSkin'),
   getCurrentSkinId: (): Promise<string | null> => ipcRenderer.invoke('getCurrentSkinId'),
   refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),
   // Window controls

@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 
-export default function WindowControls(): JSX.Element {
+interface WindowControlsProps {
+  showSettings: boolean
+  setShowSettings: (show: boolean) => void
+}
+
+export default function WindowControls({ showSettings, setShowSettings }: WindowControlsProps): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
@@ -48,6 +53,22 @@ export default function WindowControls(): JSX.Element {
         backgroundColor: '#000000ff'
       }}
     >
+      {/* 设置 */}
+      <button
+        onClick={() => setShowSettings(!showSettings)}
+        style={buttonStyle}
+        title="设置"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#394c74ff'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent'
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" style={{ shapeRendering: 'geometricPrecision', imageRendering: 'crisp-edges' }}>
+          <path fill="#f0e6d2" d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.08-.7-1.66-.94l-.38-2.65c-.03-.24-.24-.42-.48-.42h-4c-.24 0-.45.18-.48.42l-.38 2.65c-.58.24-1.14.55-1.66.94l-2.49-1c-.22-.08-.49 0-.61.22l-2 3.46c-.12.22-.07.49.12.64l2.11 1.65c-.04.32-.07.64-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.08.7 1.66.94l.38 2.65c.03.24.24.42.48.42h4c.24 0 .45-.18.48-.42l.38-2.65c.58-.24 1.14-.55 1.66-.94l2.49 1c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-7.43 2.52c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z" />
+        </svg>
+      </button>
       {/* 最小化 */}
       <button 
         onClick={handleMinimize} 

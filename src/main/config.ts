@@ -12,6 +12,7 @@ import { CONFIG_PATH } from './constants'
 
 const DEFAULT_CONFIG = {
   leaguePath: '',
+  skinsPath: '',
   currentSkinId: null as string | null
 }
 
@@ -106,29 +107,18 @@ export async function setLeaguePath(leaguePath: string): Promise<boolean> {
 export async function askAndSetLeaguePath(): Promise<boolean> {
   const { BrowserWindow } = await import('electron')
   const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
-    // const result = await dialog.showOpenDialog(mainWindow, {
-    // properties: ['openDirectory', 'openFile'],
-    // title: '选择英雄联盟安装路径',
-  // 首先尝试选择exe文件
+
   let result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     title: '选择 League of Legends.exe 或 LeagueClient.exe',
     filters: [{ name: 'Executable', extensions: ['exe'] }]
   })
 
-  let filePath = ''
   if (result.canceled || result.filePaths.length === 0) {
-    // 用户没选择文件，则让用户选择文件夹
-    result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title: '选择英雄联盟安装路径'
-    })
-    if (result.canceled || result.filePaths.length === 0) return false
-    filePath = result.filePaths[0]
-  } else {
-    filePath = result.filePaths[0]
+    return false
   }
 
+  const filePath = result.filePaths[0]
   const isValid = await isLeaguePathValid(filePath)
   if (!isValid) return false
 

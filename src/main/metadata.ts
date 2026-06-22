@@ -18,6 +18,7 @@ export type Chroma = {
   id: number
   championId: number
   championName: string
+  name: string
   colors: string[]
 }
 
@@ -121,6 +122,7 @@ export async function listSkins(): Promise<Skin[]> {
         id: getChampSkinIdFromSkinId(chroma.id).skinId,
         championId,
         championName: champion.name,
+        name: rawSkin.name,  // 使用父级皮肤名称匹配中文命名的炫彩文件
         colors: chroma.colors
       }))
     })

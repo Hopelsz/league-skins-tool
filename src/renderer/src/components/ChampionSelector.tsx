@@ -61,23 +61,50 @@ export default function ChampionSelector({
           <div style={{ width: '2rem' }}>
             <SearchIcon />
           </div>
-          <input
-            type="text"
-            value={championSearch}
-            onChange={(event) => setChampionSearch(event.target.value)}
-            placeholder="搜索英雄"
-            style={{
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              padding: '8px 12px',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              color: '#f0e6d2',
-              width: '100%',
-              maxWidth: '400px'
-            }}
-          />
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <input
+              type="text"
+              value={championSearch}
+              onChange={(event) => setChampionSearch(event.target.value)}
+              placeholder="搜索英雄"
+              style={{
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '8px 12px',
+                paddingRight: championSearch ? '32px' : '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                color: '#f0e6d2',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            />
+            {championSearch && (
+              <button
+                onClick={() => setChampionSearch('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#c8aa6e',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1rem',
+                  lineHeight: 1
+                }}
+                title="清除搜索"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
