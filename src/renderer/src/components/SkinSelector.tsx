@@ -28,8 +28,8 @@ function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setI
     <div className="chroma-container">
       {skin.chromas
         .filter((chroma) => chroma.colors?.length)
-        .map((chroma, i) => {
-          const isChromaSelected = String(chroma.id) === currentSkinId
+        .map((chroma) => {
+          const isChromaSelected = `${chroma.championId}-${chroma.id}` === currentSkinId
           return (
             <div
               key={chroma.id}
@@ -46,12 +46,12 @@ function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setI
                     // 取消应用当前皮肤
                     await window.api.disableSkin()
                     setCurrentSkinId(null)
-                    setAlert(`${skin.name} chroma #${i + 1} 已取消应用！`)
+                    setAlert(`${chroma.name} 已取消应用！`)
                     return
                   }
                   await window.api.setSkin(chroma)
-                  setCurrentSkinId(String(chroma.id))
-                  setAlert(`${skin.name} chroma #${i + 1} selected successfully!`)
+                  setCurrentSkinId(`${chroma.championId}-${chroma.id}`)
+                  setAlert(`${chroma.name} 应用成功！`)
                 } finally {
                   setIsLoading(false)
                 }
@@ -88,8 +88,8 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
 
   // 检查皮肤或任意炫彩是否被选中的辅助函数
   const isSkinOrChromaApplied = (skin: Skin): boolean => {
-    if (String(skin.id) === currentSkinId) return true
-    return skin.chromas?.some(chroma => String(chroma.id) === currentSkinId) ?? false
+    if (`${skin.championId}-${skin.id}` === currentSkinId) return true
+    return skin.chromas?.some(chroma => `${chroma.championId}-${chroma.id}` === currentSkinId) ?? false
   }
 
   if (champion === null) return <></>
@@ -195,7 +195,7 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
               if (isLoading) return
               setIsLoading(true)
               try {
-                if (String(skin.id) === currentSkinId) {
+                if (`${skin.championId}-${skin.id}` === currentSkinId) {
                   // 取消应用当前皮肤
                   await window.api.disableSkin()
                   setCurrentSkinId(null)
@@ -203,8 +203,8 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
                   return
                 }
                 await window.api.setSkin(skin)
-                setCurrentSkinId(String(skin.id))
-                setAlert(`${skin.name} selected successfully!`)
+                setCurrentSkinId(`${skin.championId}-${skin.id}`)
+                setAlert(`${skin.name} 应用成功！`)
               } finally {
                 setIsLoading(false)
               }

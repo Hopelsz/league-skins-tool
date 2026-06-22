@@ -3,6 +3,9 @@
 export interface Champion {
   id: number
   name: string
+  alias: string
+  key: string
+  nicknames: string[]
   image: string
 }
 
@@ -18,9 +21,8 @@ export interface Skin {
 export interface Chroma {
   id: number
   championId: number
-  skinId: number
+  championName?: string
   name: string
-  image: string
   colors?: string[]
 }
 

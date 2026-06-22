@@ -100,9 +100,14 @@ export default function App(): JSX.Element {
           left: 0,
           right: 0,
           height: '40px',
-          zIndex: 9998
+          zIndex: 9998,
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: '12px'
         }}
-      />
+      >
+        <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.12</span>
+      </div>
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {settingPath ? (
         <PathSetter ready={handlePathReady} />

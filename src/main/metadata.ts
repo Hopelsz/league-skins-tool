@@ -7,10 +7,14 @@
 
 import fs from 'fs/promises'
 import { LOL_SKINS_METADATA_LOCATION } from './constants'
+import { getChampionInfo } from './championData'
 
 export type Champion = {
   id: number
   name: string
+  alias: string
+  key: string
+  nicknames: string[]
   image: string
 }
 
@@ -87,10 +91,16 @@ export async function listChampions(): Promise<Champion[]> {
     const { championId } = getChampSkinIdFromSkinId(skin.id)
     if (championsMap.has(championId)) continue
 
+    const championKey = getChampionKeyFromSplashArt(skin.splashPath) ?? ''
+    const info = getChampionInfo(championKey)
+
     championsMap.set(championId, {
       id: championId,
-      name: skin.name,
-      image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${getChampionKeyFromSplashArt(skin.splashPath)}_0.jpg`
+      name: info?.title || skin.name,
+      alias: info?.name || '',
+      key: championKey,
+      nicknames: info?.nicknames ?? [],
+      image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
     })
   }
 

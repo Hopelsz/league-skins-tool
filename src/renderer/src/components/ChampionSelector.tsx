@@ -24,9 +24,14 @@ export default function ChampionSelector({
     })()
   }, [])
 
-  const filteredChampions = champions.filter((c) =>
-    c.name.toLowerCase().includes(championSearch.toLowerCase())
-  )
+  const filteredChampions = champions.filter((c) => {
+    const search = championSearch.toLowerCase()
+    return (
+      c.name.toLowerCase().includes(search) ||
+      c.alias.toLowerCase().includes(search) ||
+      c.key.toLowerCase().includes(search)
+    )
+  })
 
   return (
     <div
