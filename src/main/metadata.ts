@@ -39,7 +39,7 @@ type SkinRaw = {
   id: number
   name: string
   splashPath: string
-  chromas?: { id: number; colors: string[] }[]
+  chromas?: { id: number; name: string; colors: string[] }[]
 }
 
 /**
@@ -132,7 +132,7 @@ export async function listSkins(): Promise<Skin[]> {
         id: getChampSkinIdFromSkinId(chroma.id).skinId,
         championId,
         championName: champion.name,
-        name: rawSkin.name,  // 使用父级皮肤名称匹配中文命名的炫彩文件
+        name: chroma.name || rawSkin.name,  // 使用 chroma 自己的名称来精确匹配文件
         colors: chroma.colors
       }))
     })

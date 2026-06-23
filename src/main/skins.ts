@@ -83,6 +83,40 @@ async function findFileInDir(dir: string, targetName: string): Promise<string | 
 }
 
 /**
+ * Find a chroma file by its numeric ID.
+ * Chroma files are stored as {id}.fantome or {id}.zip in the champion directory.
+ * @returns the full file path, or null if not found.
+ */
+async function findChromaFileById(championName: string, chromaId: number): Promise<string | null> {
+  const skinsLocation = await getSkinsLocation()
+  const championDir = path.join(skinsLocation, championName)
+
+  try {
+    await fs.access(championDir)
+  } catch {
+    return null
+  }
+
+  // Check top-level: {chromaId}.fantome or {chromaId}.zip
+  const fantomePath = path.join(championDir, `${chromaId}.fantome`)
+  const zipPath = path.join(championDir, `${chromaId}.zip`)
+  if (await fs.pathExists(fantomePath)) return fantomePath
+  if (await fs.pathExists(zipPath)) return zipPath
+
+  // Also search subdirectories for legacy chroma structures
+  const entries = await fs.readdir(championDir, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const subFantome = path.join(championDir, entry.name, `${chromaId}.fantome`)
+    const subZip = path.join(championDir, entry.name, `${chromaId}.zip`)
+    if (await fs.pathExists(subFantome)) return subFantome
+    if (await fs.pathExists(subZip)) return subZip
+  }
+
+  return null
+}
+
+/**
  * Finds a skin file by name in the champion directory.
  *
  * For regular skins: searches top-level .fantome/.zip files.
@@ -149,15 +183,25 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
   if (!skin.championName) {
     throw new Error(`Skin/Chroma does not have championName: ${JSON.stringify(skin)}`)
   }
+
+  const chroma = isChroma(skin)
   
-  const skinPath = await findSkinFile(
-    skin.championName,
-    skin.name,
-    isChroma(skin)
-  )
+  // For chromas, search by ID first (chroma files are named {id}.fantome),
+  // then fall back to name-based search for legacy structures.
+  let skinPath: string | null = null
+  if (chroma) {
+    skinPath = await findChromaFileById(skin.championName, skin.id)
+  }
+  if (!skinPath) {
+    skinPath = await findSkinFile(
+      skin.championName,
+      skin.name,
+      chroma
+    )
+  }
   
   if (!skinPath) {
-    const identifier = isChroma(skin) ? `chroma id=${skin.id} name="${skin.name}"` : skin.name
+    const identifier = chroma ? `chroma id=${skin.id} name="${skin.name}"` : skin.name
     throw new Error(`Skin file not found for: ${identifier} in champion: ${skin.championName}`)
   }
   const gamePath = path.join(await getLeaguePath(), 'Game')

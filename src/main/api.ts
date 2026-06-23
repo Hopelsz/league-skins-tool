@@ -8,7 +8,7 @@
 import { ipcMain } from 'electron'
 
 import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId } from './config'
-import { downloadLolSkins, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins } from './download'
+import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins } from './download'
 import { setSkin, disableSkin } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions } from './metadata'
 
@@ -25,6 +25,8 @@ ipcMain.handle('setSkin', (_, skin: Skin | Chroma) => setSkin(skin))
 ipcMain.handle('disableSkin', () => disableSkin())
 ipcMain.handle('getCurrentSkinId', getCurrentSkinId)
 ipcMain.handle('refreshLolSkins', async () => {
+  // Force re-download metadata to get latest chroma names
+  await downloadLolSkinsMetadata(true)
   const skins = await getExistingSkins()
   return skins
 })

@@ -22,12 +22,15 @@ type ChromaSelectorProps = {
 function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setIsLoading }: ChromaSelectorProps): JSX.Element {
   const { setAlert } = useAlert()
 
-  if (!skin.chromas?.length || !skin.chromas.every((chroma) => chroma.colors?.length)) return <></>
+  if (!skin.chromas?.length) return <></>
+
+  // Filter to only chromas with valid color data
+  const validChromas = skin.chromas.filter((chroma) => chroma.colors?.length)
+  if (validChromas.length === 0) return <></>
 
   return (
     <div className="chroma-container">
-      {skin.chromas
-        .filter((chroma) => chroma.colors?.length)
+      {validChromas
         .map((chroma) => {
           const isChromaSelected = `${chroma.championId}-${chroma.id}` === currentSkinId
           return (
