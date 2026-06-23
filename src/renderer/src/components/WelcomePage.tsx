@@ -57,7 +57,7 @@ export default function WelcomePage({
             <li>
               <strong>设置游戏路径</strong>
               <p>首次使用需选择英雄联盟安装目录下的 League of Legends.exe</p>
-              <code>示例：D:\Games\League of Legends\Game\League of Legends.exe</code>
+              <code>示例：D:\Games\League of Legends.exe</code>
             </li>
             <li>
               <strong>导入皮肤资源</strong>
