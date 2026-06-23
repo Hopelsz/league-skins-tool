@@ -29,7 +29,8 @@ export default function ChampionSelector({
     return (
       c.name.toLowerCase().includes(search) ||
       c.alias.toLowerCase().includes(search) ||
-      c.key.toLowerCase().includes(search)
+      c.key.toLowerCase().includes(search) ||
+      c.nicknames.some((nick) => nick.toLowerCase().includes(search))
     )
   })
 
@@ -82,7 +83,8 @@ export default function ChampionSelector({
                 backgroundColor: 'rgba(0, 0, 0, 0.3)',
                 color: '#f0e6d2',
                 width: '100%',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                textTransform: 'none'
               }}
             />
             {championSearch && (
