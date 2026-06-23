@@ -25,13 +25,36 @@ async function configExists(): Promise<boolean> {
 }
 
 /**
+ * Read the config file safely, returning parsed object or default.
+ */
+async function readConfig(): Promise<Record<string, string | null>> {
+  try {
+    const exists = await fs.pathExists(CONFIG_PATH)
+    if (!exists) {
+      await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+      return { ...DEFAULT_CONFIG }
+    }
+    const raw = await fs.readFile(CONFIG_PATH, 'utf-8')
+    if (!raw.trim()) {
+      await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+      return { ...DEFAULT_CONFIG }
+    }
+    return JSON.parse(raw)
+  } catch {
+    // If file is corrupted, reset to defaults
+    await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+    return { ...DEFAULT_CONFIG }
+  }
+}
+
+/**
  * This function gets a value from the config file.
  * @param key the key to get the value of.
  * @returns {Promise<string>} the value of the key.
  */
 export async function getConfigValue(key: string): Promise<string> {
-  const config = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'))
-  return config[key]
+  const config = await readConfig()
+  return config[key] ?? ''
 }
 
 /**
@@ -40,7 +63,7 @@ export async function getConfigValue(key: string): Promise<string> {
  * @param value the value to set.
  */
 export async function setConfigValue(key: string, value: string): Promise<void> {
-  const config = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'))
+  const config = await readConfig()
   config[key] = value
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
@@ -188,7 +211,7 @@ export async function askAndSelectLocalSkins(): Promise<string | null> {
   return filePath
 }
 
-// Create the config file if it doesn't exist.
+// Create the config file if it doesn't exist (also handled by readConfig).
 configExists().then(async (exists) => {
   if (!exists) await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
 })
