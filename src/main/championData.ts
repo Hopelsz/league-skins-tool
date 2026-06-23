@@ -22,7 +22,7 @@ const CHAMPION_DATA: Record<string, ChampionInfo> = {
     Aphelios: { title: '残月之肃', name: '厄斐琉斯' },
     Ashe: { title: '寒冰射手', name: '艾希', nicknames: ['后裔'] },
     AurelionSol: { title: '铸星龙王', name: '奥瑞利安·索尔' },
-    Azir: { title: '沙漠皇帝', name: '阿兹尔', nicknames: ['黄鸡', '爱坤'] },
+    Azir: { title: '沙漠皇帝', name: '阿兹尔', nicknames: ['黄鸡', '沙皇'] },
     Bard: { title: '星界游神', name: '巴德' },
     Belveth: { title: '虚空女皇', name: '卑尔维斯', nicknames: ['阿尔卑斯'] },
     Blitzcrank: { title: '蒸汽机器人', name: '布里茨', nicknames: ['蒸饭机器人'] },
