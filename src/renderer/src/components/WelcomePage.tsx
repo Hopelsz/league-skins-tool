@@ -1,9 +1,16 @@
 import OffCanvas from '@renderer/components/OffCanvas'
 
-export default function WelcomePage({ onStart }: { onStart: () => void }): JSX.Element {
-  return (
-    <OffCanvas active={true} setActive={() => null} compact displayExitButton={false}>
-      <div className="welcome-page">
+export default function WelcomePage({
+  onStart,
+  showStartButton = true,
+  embedded = false
+}: {
+  onStart: () => void
+  showStartButton?: boolean
+  embedded?: boolean
+}): JSX.Element {
+  const content = (
+    <div className="welcome-page">
         {/* 图标 */}
         <div className="welcome-icon">
           <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -86,10 +93,19 @@ export default function WelcomePage({ onStart }: { onStart: () => void }): JSX.E
           </ul>
         </div>
 
-        <button className="welcome-start-btn" onClick={onStart}>
-          开始使用
-        </button>
-      </div>
+        {showStartButton && (
+          <button className="welcome-start-btn" onClick={onStart}>
+            开始使用
+          </button>
+        )}
+    </div>
+  )
+
+  if (embedded) return content
+
+  return (
+    <OffCanvas active={true} setActive={() => null} compact displayExitButton={false}>
+      {content}
     </OffCanvas>
   )
 }

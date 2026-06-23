@@ -1027,3 +1027,8 @@ svg.cool-border:hover path {
 .window-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* --------------- INFO BUTTON --------------- */
+.info-button:hover {
+  opacity: 1 !important;
+}

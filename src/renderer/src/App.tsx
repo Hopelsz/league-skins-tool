@@ -15,13 +15,28 @@ import { useAlert } from '@renderer/hooks/Alert'
 export default function App(): JSX.Element {
   const [showWelcome, setShowWelcome] = useState(true)
   const [settingPath, setSettingPath] = useState(false)
+  const [checkingPath, setCheckingPath] = useState(false)
   const [selectedChampion, setSelectedChampion] = useState<Champion | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showWelcomeInfo, setShowWelcomeInfo] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [importingSkins, setImportingSkins] = useState(false)
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const { setAlert } = useAlert()
+
+  // Handle "开始使用" click: check if path already valid
+  const handleStart = async (): Promise<void> => {
+    setShowWelcome(false)
+    setCheckingPath(true)
+    const valid = await window.api.isCurrentLeaguePathValid()
+    if (valid) {
+      setSettingPath(false)
+    } else {
+      setSettingPath(true)
+    }
+    setCheckingPath(false)
+  }
 
   // Scroll to top when view changes (because champion changes)
   useEffect(() => {
@@ -84,14 +99,49 @@ export default function App(): JSX.Element {
           paddingLeft: '12px'
         }}
       >
+        {!showWelcome && !settingPath && (
+          <button
+            className="window-no-drag info-button"
+            onClick={() => setShowWelcomeInfo(true)}
+            title="使用说明"
+            style={{
+              width: '20px',
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 0,
+              marginRight: '8px',
+              background: 'transparent',
+              border: 'none',
+              opacity: 0.55,
+              transition: 'opacity 0.2s ease'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="#c8aa6e" strokeWidth="1.5" />
+              <path d="M12 16.5v-6" stroke="#c8aa6e" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="12" cy="8" r="1.1" fill="#c8aa6e" />
+            </svg>
+          </button>
+        )}
         <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.12</span>
       </div>
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {showWelcome ? (
-        <WelcomePage onStart={() => {
-          setShowWelcome(false)
-          setSettingPath(true)
-        }} />
+        <WelcomePage onStart={handleStart} />
+      ) : checkingPath ? (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          color: '#c8aa6e',
+          fontSize: '0.9rem'
+        }}>
+          正在检查配置...
+        </div>
       ) : settingPath ? (
         <PathSetter ready={handlePathReady} />
       ) : (
@@ -129,6 +179,16 @@ export default function App(): JSX.Element {
               </div>
 
             </div>
+          </OffCanvas>
+          {/* 使用说明弹窗 */}
+          <OffCanvas
+            active={showWelcomeInfo}
+            setActive={setShowWelcomeInfo}
+            displayExitButton={true}
+            exitButtonText="关闭"
+            compact
+          >
+            <WelcomePage onStart={() => setShowWelcomeInfo(false)} showStartButton={false} embedded />
           </OffCanvas>
           <RefreshButton onClick={handleRefresh} />
           {/* Main content area with fixed header */}
