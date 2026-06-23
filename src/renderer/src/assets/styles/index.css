@@ -788,6 +788,20 @@ svg.cool-border:hover path {
   height: 100%;
 }
 
+.img-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.img-error-text {
+  font-size: 0.75rem;
+  color: #7a8a99;
+}
+
 .skin-container .skin-card:hover,
 .skin-container .skin-card:focus {
   outline: 2px solid #785b28;

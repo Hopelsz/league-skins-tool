@@ -215,7 +215,7 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
             }}
           >
             <div style={{ position: 'relative' }}>
-              <ImageLoader src={skin.image} alt={skin.name} />
+              <ImageLoader key={`${skin.id}-${refreshTrigger}`} src={skin.image} alt={skin.name} />
               {isSkinOrChromaApplied(skin) && (
                 <div
                   style={{
