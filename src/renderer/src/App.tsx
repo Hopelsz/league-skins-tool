@@ -11,7 +11,6 @@ import OffCanvas from '@renderer/components/OffCanvas'
 import RefreshButton from '@renderer/components/RefreshButton'
 import SettingsButton from '@renderer/components/SettingsButton'
 import { useAlert } from '@renderer/hooks/Alert'
-import { useConfirm } from '@renderer/hooks/Confirm'
 
 export default function App(): JSX.Element {
   const [settingPath, setSettingPath] = useState(true)
@@ -23,7 +22,6 @@ export default function App(): JSX.Element {
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const { setAlert } = useAlert()
-  const { setConfirmProps } = useConfirm()
 
   // Check if skins need to be downloaded when path is set
   useEffect(() => {
@@ -70,14 +68,6 @@ export default function App(): JSX.Element {
         setImportingSkins(false)
       }
     }
-  }
-
-  const handleUpdateSkins = (): void => {
-    setConfirmProps({
-      title: 'Skins Update',
-      message: 'Are you sure you want to download the latest skins?',
-      onConfirm: () => setDownloading(true)
-    })
   }
 
   const handleRefresh = async (): Promise<void> => {
@@ -149,21 +139,7 @@ export default function App(): JSX.Element {
                   description="导入本地皮肤资源文件"
                 />
               </div>
-              <div className="settings-section">
-                <h4>更新</h4>
-                <div className="settings-item" onClick={handleUpdateSkins}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8aa6e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                    <path d="M16 21h5v-5" />
-                  </svg>
-                  <div className="settings-item-text">
-                    <span className="settings-item-title">更新皮肤资源</span>
-                    <span className="settings-item-desc">下载最新的皮肤资源文件</span>
-                  </div>
-                </div>
-              </div>
+
             </div>
           </OffCanvas>
           <RefreshButton onClick={handleRefresh} />
