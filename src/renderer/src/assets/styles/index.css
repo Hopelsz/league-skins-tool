@@ -862,6 +862,149 @@ svg.cool-border:hover path {
   fill: #a09b8c;
 }
 
+/* --------------- WELCOME PAGE --------------- */
+.welcome-page {
+  text-align: center;
+  padding: 1.5rem 1.8rem 1.8rem;
+  max-width: 520px;
+  margin: 0 auto;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.welcome-icon {
+  margin-bottom: 1rem;
+}
+
+.welcome-title {
+  margin: 0 0 0.3rem 0;
+  font-size: 1.3rem;
+  font-family: 'Beaufort', sans-serif;
+  color: #f0e6d2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.welcome-subtitle {
+  margin: 0 0 1.2rem 0;
+  color: #7a8a99;
+  font-size: 0.85rem;
+}
+
+.welcome-section {
+  text-align: left;
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  background: linear-gradient(135deg, rgba(30,35,40,0.4) 0%, rgba(9,20,40,0.4) 100%);
+  border: 1px solid #785b284d;
+  border-radius: 6px;
+}
+
+.welcome-section-title {
+  margin: 0 0 0.6rem 0;
+  font-size: 0.8rem;
+  font-family: 'Beaufort', sans-serif;
+  color: #c8aa6e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid #785b2833;
+  padding-bottom: 0.4rem;
+}
+
+.welcome-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.welcome-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+  color: #a09b8c;
+  line-height: 1.5;
+}
+
+.welcome-list li:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-bullet {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  margin-top: 1px;
+}
+
+.welcome-steps {
+  margin: 0;
+  padding: 0 0 0 1.4rem;
+}
+
+.welcome-steps li {
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
+  color: #a09b8c;
+  line-height: 1.5;
+}
+
+.welcome-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-steps li strong {
+  color: #d4b87a;
+  font-family: 'Beaufort', sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.welcome-steps li p {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.78rem;
+}
+
+.welcome-steps li code {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: #5a6570;
+  font-family: 'Consolas', monospace;
+  background: rgba(0,0,0,0.25);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.welcome-notice {
+  border-color: #c8aa6e33;
+}
+
+.welcome-notice .welcome-list li {
+  color: #8a8478;
+  font-size: 0.75rem;
+}
+
+.welcome-start-btn {
+  margin-top: 0.5rem;
+  padding: 0.7rem 3rem;
+  font-size: 0.95rem;
+  font-family: 'Beaufort', sans-serif;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  background: linear-gradient(135deg, #c8aa6e 0%, #785a28 100%);
+  color: #0A1428;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.welcome-start-btn:hover {
+  background: linear-gradient(135deg, #d4b87a 0%, #8b6a35 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(200,170,110,0.3);
+}
+
 /* --------------- WINDOW DRAG REGION --------------- */
 .window-drag-region {
   -webkit-app-region: drag;

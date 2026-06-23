@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 
 import { Champion } from './types'
 import Providers from '@renderer/components/providers/Main'
+import WelcomePage from '@renderer/components/WelcomePage'
 import PathSetter from '@renderer/components/PathSetter'
 import AssetDownloader from '@renderer/components/AssetDownloader'
 import ChampionSelector from '@renderer/components/ChampionSelector'
@@ -13,7 +14,8 @@ import SettingsButton from '@renderer/components/SettingsButton'
 import { useAlert } from '@renderer/hooks/Alert'
 
 export default function App(): JSX.Element {
-  const [settingPath, setSettingPath] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(true)
+  const [settingPath, setSettingPath] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [selectedChampion, setSelectedChampion] = useState<Champion | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -99,7 +101,12 @@ export default function App(): JSX.Element {
         <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.12</span>
       </div>
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
-      {settingPath ? (
+      {showWelcome ? (
+        <WelcomePage onStart={() => {
+          setShowWelcome(false)
+          setSettingPath(true)
+        }} />
+      ) : settingPath ? (
         <PathSetter ready={handlePathReady} />
       ) : (
         <Providers>
@@ -127,7 +134,7 @@ export default function App(): JSX.Element {
                   isLoading={false}
                   isSuccess={changePathSuccess}
                   icon="folder"
-                  title="更改游戏路径"
+                  title="设置游戏路径"
                   description="修改英雄联盟安装目录"
                 />
                 <SettingsButton
