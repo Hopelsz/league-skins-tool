@@ -13,9 +13,8 @@ import SettingsButton from '@renderer/components/SettingsButton'
 import { useAlert } from '@renderer/hooks/Alert'
 
 export default function App(): JSX.Element {
-  const [showWelcome, setShowWelcome] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(false)
   const [settingPath, setSettingPath] = useState(false)
-  const [checkingPath, setCheckingPath] = useState(false)
   const [selectedChampion, setSelectedChampion] = useState<Champion | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showWelcomeInfo, setShowWelcomeInfo] = useState(false)
@@ -25,20 +24,23 @@ export default function App(): JSX.Element {
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const { setAlert } = useAlert()
 
-  // Handle "开始使用" click: check if path already valid
-  const handleStart = async (): Promise<void> => {
+  // 启动时自动检测：路径已配置则直接进主界面，否则显示欢迎页
+  useEffect(() => {
+    ;(async (): Promise<void> => {
+      const valid = await window.api.isCurrentLeaguePathValid()
+      if (valid) {
+        try { await window.api.refreshLolSkins() } catch { /* ignore */ }
+        setRefreshTrigger((prev) => prev + 1)
+      } else {
+        setShowWelcome(true)
+      }
+    })()
+  }, [])
+
+  // Handle "开始使用" click: 直接进入路径设置
+  const handleStart = (): void => {
     setShowWelcome(false)
-    setCheckingPath(true)
-    const valid = await window.api.isCurrentLeaguePathValid()
-    if (valid) {
-      // 路径有效，先下载元数据再进入主界面
-      await window.api.refreshLolSkins()
-      setRefreshTrigger((prev) => prev + 1)
-      setSettingPath(false)
-    } else {
-      setSettingPath(true)
-    }
-    setCheckingPath(false)
+    setSettingPath(true)
   }
 
   // Scroll to top when view changes (because champion changes)
@@ -145,17 +147,6 @@ export default function App(): JSX.Element {
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {showWelcome ? (
         <WelcomePage onStart={handleStart} />
-      ) : checkingPath ? (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          color: '#c8aa6e',
-          fontSize: '0.9rem'
-        }}>
-          正在检查配置...
-        </div>
       ) : settingPath ? (
         <PathSetter ready={handlePathReady} loading={loadingMetadata} />
       ) : (
