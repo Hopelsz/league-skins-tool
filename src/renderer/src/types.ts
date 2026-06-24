@@ -6,6 +6,7 @@ export interface Champion {
   alias: string
   key: string
   nicknames: string[]
+  roles: string[]
   image: string
 }
 
