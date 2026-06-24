@@ -31,6 +31,9 @@ export default function App(): JSX.Element {
     setCheckingPath(true)
     const valid = await window.api.isCurrentLeaguePathValid()
     if (valid) {
+      // 路径有效，先下载元数据再进入主界面
+      await window.api.refreshLolSkins()
+      setRefreshTrigger((prev) => prev + 1)
       setSettingPath(false)
     } else {
       setSettingPath(true)
@@ -43,7 +46,18 @@ export default function App(): JSX.Element {
     document.getElementById('root')?.scrollTo(0, 0)
   }, [selectedChampion])
 
-  const handlePathReady = (): void => {
+  const [loadingMetadata, setLoadingMetadata] = useState(false)
+
+  const handlePathReady = async (): Promise<void> => {
+    // 路径设置完成后，先下载元数据再进入主界面
+    setLoadingMetadata(true)
+    try {
+      await window.api.refreshLolSkins()
+    } catch {
+      // 下载失败不阻塞，用户可以在主界面手动刷新
+    }
+    setLoadingMetadata(false)
+    setRefreshTrigger((prev) => prev + 1)
     setSettingPath(false)
   }
 
@@ -143,7 +157,7 @@ export default function App(): JSX.Element {
           正在检查配置...
         </div>
       ) : settingPath ? (
-        <PathSetter ready={handlePathReady} />
+        <PathSetter ready={handlePathReady} loading={loadingMetadata} />
       ) : (
         <Providers>
           {/* 设置面板 */}
@@ -217,6 +231,7 @@ export default function App(): JSX.Element {
               <ChampionSelector
                 champion={selectedChampion}
                 setChampion={setSelectedChampion}
+                refreshTrigger={refreshTrigger}
               />
               <SkinSelector champion={selectedChampion} setChampion={setSelectedChampion} refreshTrigger={refreshTrigger} />
             </div>

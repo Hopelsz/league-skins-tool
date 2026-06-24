@@ -8,21 +8,28 @@ import icon from '../assets/icon.png'
 type ChampionSelectorProps = {
   champion: Champion | null
   setChampion: (champ: Champion) => void
+  refreshTrigger?: number
 }
 
 export default function ChampionSelector({
   champion,
-  setChampion
+  setChampion,
+  refreshTrigger = 0
 }: ChampionSelectorProps): JSX.Element {
   const [champions, setChampions] = useState<Champion[]>([])
   const [championSearch, setChampionSearch] = useState('')
 
-  // Fetch initial champions
+  // Fetch champions on mount and when refresh is triggered
   useEffect(() => {
     ;(async (): Promise<void> => {
-      setChampions(await window.api.listChampions())
+      try {
+        setChampions(await window.api.listChampions())
+      } catch (error) {
+        console.error('获取英雄列表失败:', error)
+        setChampions([])
+      }
     })()
-  }, [])
+  }, [refreshTrigger])
 
   const filteredChampions = champions.filter((c) => {
     const search = championSearch.toLowerCase()
