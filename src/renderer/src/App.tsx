@@ -25,11 +25,12 @@ export default function App(): JSX.Element {
   const { setAlert } = useAlert()
 
   // 启动时自动检测：路径已配置则直接进主界面，否则显示欢迎页
+  // 注意：这里不再调用 refreshLolSkins()，避免与 SkinSelector 中的调用产生竞态。
+  // 刷新皮肤数据的逻辑统一由 SkinSelector 通过 refreshTrigger 触发。
   useEffect(() => {
     ;(async (): Promise<void> => {
       const valid = await window.api.isCurrentLeaguePathValid()
       if (valid) {
-        try { await window.api.refreshLolSkins() } catch { /* ignore */ }
         setRefreshTrigger((prev) => prev + 1)
       } else {
         setShowWelcome(true)
@@ -142,7 +143,7 @@ export default function App(): JSX.Element {
             </svg>
           </button>
         )}
-        <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.12</span>
+        <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.13</span>
       </div>
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {showWelcome ? (

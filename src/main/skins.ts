@@ -18,10 +18,53 @@ import {
   TEMP_DIR
 } from './constants'
 import type { Skin, Chroma } from './metadata'
+import { listChampions } from './metadata'
 import { getLeaguePath, setCurrentSkinId } from './config'
 import { getSkinsLocation } from './download'
 
 let runningProcess: ChildProcess | null = null
+
+// Cache champion titles → champion data to avoid repeated calls
+let championDirCache: Map<string, string[]> | null = null
+
+/**
+ * Build a map from champion title (current or alias) to all possible directory names.
+ */
+async function getChampionDirNames(): Promise<Map<string, string[]>> {
+  if (championDirCache) return championDirCache
+  const champions = await listChampions()
+  const map = new Map<string, string[]>()
+  for (const c of champions) {
+    const names = [c.name, ...c.aliases]
+    map.set(c.name, names)
+    for (const alias of c.aliases) {
+      map.set(alias, names)
+    }
+  }
+  championDirCache = map
+  return map
+}
+
+/**
+ * Resolve the actual champion directory on disk, trying current title and aliases.
+ * @returns the full path to the champion directory, or null if not found.
+ */
+async function resolveChampionDir(championName: string): Promise<string | null> {
+  const skinsLocation = await getSkinsLocation()
+  const dirNames = await getChampionDirNames()
+  const possibleNames = dirNames.get(championName) || [championName]
+
+  for (const dirName of possibleNames) {
+    const candidateDir = path.join(skinsLocation, dirName)
+    try {
+      await fs.access(candidateDir)
+      return candidateDir
+    } catch {
+      // continue to next candidate
+    }
+  }
+  return null
+}
 
 /**
  * Normalize a string for fuzzy matching: lowercase, remove spaces/colons/quotes.
@@ -88,14 +131,8 @@ async function findFileInDir(dir: string, targetName: string): Promise<string | 
  * @returns the full file path, or null if not found.
  */
 async function findChromaFileById(championName: string, chromaId: number): Promise<string | null> {
-  const skinsLocation = await getSkinsLocation()
-  const championDir = path.join(skinsLocation, championName)
-
-  try {
-    await fs.access(championDir)
-  } catch {
-    return null
-  }
+  const championDir = await resolveChampionDir(championName)
+  if (!championDir) return null
 
   // Check top-level: {chromaId}.fantome or {chromaId}.zip
   const fantomePath = path.join(championDir, `${chromaId}.fantome`)
@@ -130,14 +167,8 @@ async function findChromaFileById(championName: string, chromaId: number): Promi
  *       {chromaVariantName}.fantome ← chroma variant
  */
 async function findSkinFile(championName: string, skinName: string, isChromaSearch: boolean): Promise<string | null> {
-  const skinsLocation = await getSkinsLocation()
-  const championDir = path.join(skinsLocation, championName)
-
-  try {
-    await fs.access(championDir)
-  } catch {
-    return null
-  }
+  const championDir = await resolveChampionDir(championName)
+  if (!championDir) return null
 
   if (isChromaSearch) {
     // Chroma: search subdirectories first (chroma files are always inside

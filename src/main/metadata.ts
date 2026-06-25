@@ -16,6 +16,7 @@ export type Champion = {
   key: string
   nicknames: string[]
   roles: string[]
+  aliases: string[]
   image: string
 }
 
@@ -102,6 +103,7 @@ export async function listChampions(): Promise<Champion[]> {
       key: championKey,
       nicknames: info?.nicknames ?? [],
       roles: info?.roles ?? [],
+      aliases: info?.aliases ?? [],
       image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
     })
   }

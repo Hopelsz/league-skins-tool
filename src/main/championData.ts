@@ -10,6 +10,7 @@ export interface ChampionInfo {
     name: string         // 中文名，如"艾克"
     nicknames?: string[] // 玩家常用外号，如"艾克"、"时间管理大师" 等
     roles?: ChampionRole[] // 英雄分路/定位
+    aliases?: string[] // 英雄目录别名（如重做后名称变化），用于匹配皮肤包中的实际目录名
 }
 
 // key → title, name, roles
@@ -167,7 +168,7 @@ const CHAMPION_DATA: Record<string, ChampionInfo> = {
     Vex: { title: '愁云使者', name: '薇古丝', nicknames: ['熬夜波比'], roles: ['Mid'] },
     Vi: { title: '皮城执法官', name: '蔚', roles: ['Jungle'] },
     Viego: { title: '破败之王', name: '佛耶戈', roles: ['Jungle'] },
-    Viktor: { title: '机械先驱', name: '维克托', roles: ['Mid'] },
+    Viktor: { title: '奥术先驱', name: '维克托', roles: ['Mid'], aliases: ['机械先驱'] },
     Vladimir: { title: '猩红收割者', name: '弗拉基米尔', nicknames: ['吸血鬼'], roles: ['Mid', 'Top'] },
     Volibear: { title: '不灭狂雷', name: '沃利贝尔', nicknames: ['狗熊'], roles: ['Jungle', 'Top'] },
     Warwick: { title: '祖安怒兽', name: '沃里克', roles: ['Jungle', 'Top'] },

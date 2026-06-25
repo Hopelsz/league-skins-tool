@@ -26,6 +26,7 @@ ipcMain.handle('disableSkin', () => disableSkin())
 ipcMain.handle('getCurrentSkinId', getCurrentSkinId)
 ipcMain.handle('refreshLolSkins', async () => {
   // Force re-download metadata to get latest chroma names
+  // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入
   await downloadLolSkinsMetadata(true)
   const skins = await getExistingSkins()
   return skins

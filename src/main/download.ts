@@ -30,6 +30,7 @@ import {
 } from './metadata'
 
 const downloadMutex = new Mutex()
+const metadataMutex = new Mutex()
 let downloadCancelled = false
 
 /**
@@ -225,10 +226,12 @@ function extractChromaId(filename: string): number | null {
  * @returns {Promise<void>} when the operation is finished.
  */
 export async function downloadLolSkinsMetadata(force: boolean = false): Promise<void> {
-  if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return
+  return metadataMutex.runExclusive(async () => {
+    if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return
 
-  const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
-  await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
+    const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
+    await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
+  })
 }
 
 /**
@@ -376,12 +379,37 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
  */
 export async function getExistingSkins(): Promise<Skin[]> {
   const skinsLocation = await getSkinsLocation()
+  if (!(await locationExists(skinsLocation))) {
+    console.warn(`Skins location does not exist: ${skinsLocation}`)
+    return []
+  }
   const skins = await listSkins()
   const existingSkins: Skin[] = []
 
+  // Build champion title → champion map for finding aliases
+  const champions = await listChampions()
+  const championByTitle = new Map<string, Champion>()
+  for (const c of champions) {
+    championByTitle.set(c.name, c)
+  }
+
   for (const skin of skins) {
-    const championDir = path.join(skinsLocation, skin.championName)
-    if (!(await locationExists(championDir))) continue
+    // Try current championName first, then aliases as fallback
+    const champion = championByTitle.get(skin.championName)
+    const possibleDirs = [skin.championName]
+    if (champion) {
+      possibleDirs.push(...champion.aliases)
+    }
+
+    let championDir: string | null = null
+    for (const dirName of possibleDirs) {
+      const candidateDir = path.join(skinsLocation, dirName)
+      if (await locationExists(candidateDir)) {
+        championDir = candidateDir
+        break
+      }
+    }
+    if (!championDir) continue
 
     const files = await fs.readdir(championDir)
     const normalizedSkinName = skin.name.toLowerCase().replace(/[:\s'"]/g, '').replace(/　/g, '')
