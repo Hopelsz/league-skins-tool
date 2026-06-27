@@ -19,11 +19,15 @@ const api = {
   setSkin: (skin: Skin | Chroma): Promise<void> => ipcRenderer.invoke('setSkin', skin),
   disableSkin: (): Promise<void> => ipcRenderer.invoke('disableSkin'),
   getCurrentSkinId: (): Promise<string | null> => ipcRenderer.invoke('getCurrentSkinId'),
+  getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('getCloseBehavior'),
+  setCloseBehavior: (behavior: string): Promise<void> => ipcRenderer.invoke('setCloseBehavior', behavior),
   refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),
   // Window controls
   minimizeWindow: (): void => ipcRenderer.send('window-minimize'),
   maximizeWindow: (): void => ipcRenderer.send('window-maximize'),
   closeWindow: (): void => ipcRenderer.send('window-close'),
+  hideWindow: (): void => ipcRenderer.send('window-hide'),
+  quitApp: (): void => ipcRenderer.send('app-quit'),
   isWindowMaximized: (): Promise<boolean> => ipcRenderer.invoke('window-is-maximized'),
   onWindowMaximized: (callback: (maximized: boolean) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, maximized: boolean) => callback(maximized)

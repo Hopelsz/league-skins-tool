@@ -192,6 +192,18 @@ export async function setCurrentSkinId(skinId: string | null): Promise<void> {
   await setConfigValue('currentSkinId', skinId ?? '')
 }
 
+export type CloseBehavior = 'ask' | 'tray' | 'quit'
+
+export async function getCloseBehavior(): Promise<CloseBehavior> {
+  const val = await getConfigValue('closeBehavior')
+  if (val === 'tray' || val === 'quit') return val
+  return 'ask'
+}
+
+export async function setCloseBehavior(behavior: CloseBehavior): Promise<void> {
+  await setConfigValue('closeBehavior', behavior)
+}
+
 /**
  * This function asks the user to select the local skins folder.
  * @returns {Promise<string | null>} the selected path or null if canceled.

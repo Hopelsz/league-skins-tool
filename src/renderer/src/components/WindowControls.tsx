@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import CloseConfirmDialog from './CloseConfirmDialog'
 
 interface WindowControlsProps {
   showSettings: boolean
@@ -7,6 +8,7 @@ interface WindowControlsProps {
 
 export default function WindowControls({ showSettings, setShowSettings }: WindowControlsProps): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
 
   useEffect(() => {
     // Get initial state
@@ -26,7 +28,21 @@ export default function WindowControls({ showSettings, setShowSettings }: Window
   }
 
   const handleClose = (): void => {
-    window.api.closeWindow()
+    setShowCloseDialog(true)
+  }
+
+  const handleHideToTray = (): void => {
+    setShowCloseDialog(false)
+    window.api.hideWindow()
+  }
+
+  const handleQuit = (): void => {
+    setShowCloseDialog(false)
+    window.api.quitApp()
+  }
+
+  const handleCancelClose = (): void => {
+    setShowCloseDialog(false)
   }
 
   const buttonStyle: React.CSSProperties = {
@@ -127,6 +143,15 @@ export default function WindowControls({ showSettings, setShowSettings }: Window
           <path fill="#f0e6d2" d="M1,0L0,1l5,5L0,11l1,1l5-5l5,5l1-1L7,6l5-5L11,0L6,5L1,0z" />
         </svg>
       </button>
+
+      {/* 关闭确认弹窗 */}
+      {showCloseDialog && (
+        <CloseConfirmDialog
+          onHideToTray={handleHideToTray}
+          onQuit={handleQuit}
+          onCancel={handleCancelClose}
+        />
+      )}
     </div>
   )
 }

@@ -44,8 +44,12 @@ export interface Api {
   minimizeWindow: () => void
   maximizeWindow: () => void
   closeWindow: () => void
+  hideWindow: () => void
+  quitApp: () => void
   isWindowMaximized: () => Promise<boolean>
   onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
+  getCloseBehavior: () => Promise<string>
+  setCloseBehavior: (behavior: string) => Promise<void>
 }
 
 declare global {
