@@ -1,9 +1,9 @@
 {
   "name": "league-skins",
-  "version": "1.0.5",
-  "description": "A Windows Skin-Changer for League of Legends based on lol-skins and cslol-manager.",
+  "version": "1.0.6",
+  "description": "league-skins",
   "main": "./out/main/index.js",
-  "author": "Konstantinos Petrakis",
+  "author": "hope",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",

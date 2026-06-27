@@ -1,38 +1,31 @@
 # League Skins
 
-A Windows skin changer for League of Legends based on lol-skins and cslol-manager.
+一款基于`cslol-manager`的英雄联盟 Windows 换肤工具。
 
-<img src="docs/demo.gif">
+<p align="center"><b><font size="5" color="#e74c3c">⚠️ 使用前需自行导入皮肤包，本工具不提供皮肤文件！</font></b></p>
 
-## How it works
+<div align="center">
+  <img src="docs/main.png" width="32%">
+  <img src="docs/skins.png" width="32%">
+  <img src="docs/setting.png" width="32%">
+</div>
 
-- It downloads the latest skins from [lol-skins](https://github.com/darkseal-org/lol-skins) and unzips them.
-- It downloads, unzips and uses [cslol-manager](https://github.com/LeagueToolkit/cslol-manager) to change the skins in the game.
-- It uses [Community Data Dragon](https://www.communitydragon.org/) to get the latest skin metadata.
 
-## Installation
+## 开发
 
 ```bash
-git clone https://github.com/KonstantinosPetrakis/league-skins.git
+git clone https://github.com/Hopelsz/league-skins-tool.git
 cd league-skins
+## 安装依赖
 npm install
-npm run build-cslol # requires docker; clones latest cslol-manager and builds it from source so it can be packaged with electron
-```
-
-## Run it for development
-
-```bash
+## 开发模式
 npm run dev
-```
-
-## Build it yourself
-
-```bash
+## 自行打包
 npm run build:win
 ```
 
-## Disclaimer
+## 免责声明
 
-This project is not endorsed by Riot Games and does not reflect the views or opinions of Riot Games or any of its affiliates. League of Legends and all related properties are trademarks or registered trademarks of Riot Games, Inc.
+本项目未获得 Riot Games 的认可，也不代表 Riot Games 或其任何关联公司的观点或意见。英雄联盟及所有相关资产均为 Riot Games, Inc. 的商标或注册商标。
 
-Additionally, I do not know whether this software violates Riot Games' Terms of Service. Its use may be against their policies, and I cannot guarantee whether it is detectable or bannable. Use this software at your own risk, as I am not responsible for any consequences, including but not limited to account penalties, bans, or restrictions imposed by Riot Games.
+此外，我无法确定本软件是否违反 Riot Games 的服务条款。使用本软件可能违反其政策，我无法保证其是否会被检测到或导致封号。使用本软件的风险由您自行承担，我对任何后果概不负责，包括但不限于 Riot Games 施加的账号处罚、封禁或限制。
