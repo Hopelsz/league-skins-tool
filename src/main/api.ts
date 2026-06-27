@@ -7,9 +7,9 @@
 
 import { ipcMain } from 'electron'
 
-import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getCloseBehavior, setCloseBehavior } from './config'
+import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior } from './config'
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins } from './download'
-import { setSkin, disableSkin } from './skins'
+import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions } from './metadata'
 
 ipcMain.handle('isCurrentLeaguePathValid', isCurrentLeaguePathValid)
@@ -22,8 +22,11 @@ ipcMain.handle('checkLolSkinsExist', checkLolSkinsExist)
 ipcMain.handle('listSkins', listSkins)
 ipcMain.handle('listChampions', listChampions)
 ipcMain.handle('setSkin', (_, skin: Skin | Chroma) => setSkin(skin))
-ipcMain.handle('disableSkin', () => disableSkin())
+ipcMain.handle('disableSkin', (_, championId?: number) => disableSkin(championId))
+ipcMain.handle('clearAllSkins', () => clearAllSkins())
+ipcMain.handle('getChampionSkinsDetail', () => getChampionSkinsDetail())
 ipcMain.handle('getCurrentSkinId', getCurrentSkinId)
+ipcMain.handle('getChampionSkinId', (_, championId: number) => getChampionSkinId(championId))
 ipcMain.handle('getCloseBehavior', getCloseBehavior)
 ipcMain.handle('setCloseBehavior', (_, behavior) => setCloseBehavior(behavior))
 ipcMain.handle('refreshLolSkins', async () => {

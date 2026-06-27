@@ -47,7 +47,7 @@ function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setI
                 try {
                   if (isChromaSelected) {
                     // 取消应用当前皮肤
-                    await window.api.disableSkin()
+                    await window.api.disableSkin(chroma.championId)
                     setCurrentSkinId(null)
                     setAlert(`${chroma.name} 已取消应用！`)
                     return
@@ -85,6 +85,17 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
       setCurrentSkinId(skinId)
     })()
   }, [refreshTrigger])
+
+  // 切换英雄时，同步 UI 中该英雄之前记住的皮肤状态
+  useEffect(() => {
+    if (!champion) return
+    ;(async (): Promise<void> => {
+      const rememberedSkinId = await window.api.getChampionSkinId(champion.id)
+      if (rememberedSkinId) {
+        setCurrentSkinId(rememberedSkinId)
+      }
+    })()
+  }, [champion?.id])
 
   const championSkins =
     champion === null ? [] : allSkins.filter((skin) => skin.championId === champion.id)
@@ -200,7 +211,7 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
               try {
                 if (`${skin.championId}-${skin.id}` === currentSkinId) {
                   // 取消应用当前皮肤
-                  await window.api.disableSkin()
+                  await window.api.disableSkin(skin.championId)
                   setCurrentSkinId(null)
                   setAlert(`${skin.name} 已取消应用！`)
                   return

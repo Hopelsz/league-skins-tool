@@ -18,8 +18,8 @@ import {
   TEMP_DIR
 } from './constants'
 import type { Skin, Chroma } from './metadata'
-import { listChampions } from './metadata'
-import { getLeaguePath, setCurrentSkinId } from './config'
+import { listChampions, listSkins as listAllSkins } from './metadata'
+import { getLeaguePath, setCurrentSkinId, setChampionSkinId, removeChampionSkinId, getChampionSkins, clearAllChampionSkins } from './config'
 import { getSkinsLocation } from './download'
 
 let runningProcess: ChildProcess | null = null
@@ -204,6 +204,7 @@ async function findSkinFile(championName: string, skinName: string, isChromaSear
 
 /**
  * This function sets the skin of a champion in league of legends.
+ * Multiple champion skins can coexist — each champion gets its own mod directory.
  * @param skin the skin or chroma to set.
  * @returns {Promise<void>} when the operation is finished.
  */
@@ -242,15 +243,31 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     runningProcess = null
   }
 
-  await fs.remove(TEMP_DIR)
+  // Ensure temp directories exist (do NOT wipe — keep other champions' mods)
   await fs.ensureDir(TEMP_DIR)
+  await fs.ensureDir(skinsDirDestination)
 
+  // Each champion gets its own mod subdirectory: skins/champion_{id}
+  const modName = `champion_${skin.championId}`
+  const modDir = path.join(skinsDirDestination, modName)
+
+  // Remove old mod for this champion, then re-import
+  await fs.remove(modDir)
   await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${path.join(skinsDirDestination, 'skin')}" --game:"${gamePath}"`,
+    `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${modDir}" --game:"${gamePath}"`,
   )
 
+  // Collect all existing mod directories
+  const entries = await fs.readdir(skinsDirDestination, { withFileTypes: true })
+  const modNames = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+
+  if (modNames.length === 0) {
+    throw new Error('No mods available after import')
+  }
+
+  const modsArg = modNames.join('/')
   await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"skin"`,
+    `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
   )
 
   runningProcess = spawn(
@@ -258,17 +275,108 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
   )
 
-  await setCurrentSkinId(`${skin.championId}-${skin.id}`)
+  const skinId = `${skin.championId}-${skin.id}`
+  await setCurrentSkinId(skinId)
+  // 记住该英雄的皮肤选择
+  await setChampionSkinId(skin.championId, skinId)
 }
 
 /**
  * This function disables the current skin by stopping the overlay process.
+ * If championId is provided, also removes that champion's mod and rebuilds overlay
+ * with remaining mods.
+ * @param championId optional champion ID to also remove from remembered skins.
  * @returns {Promise<void>} when the operation is finished.
  */
-export async function disableSkin(): Promise<void> {
+export async function disableSkin(championId?: number): Promise<void> {
   if (runningProcess) {
     runningProcess.kill()
     runningProcess = null
   }
   await setCurrentSkinId('')
+  if (championId !== undefined) {
+    await removeChampionSkinId(championId)
+
+    // Remove this champion's mod directory
+    const skinsDirDestination = path.join(TEMP_DIR, 'skins')
+    const modDir = path.join(skinsDirDestination, `champion_${championId}`)
+    await fs.remove(modDir)
+
+    // Rebuild overlay with remaining mods, or stop completely if none left
+    const entries = await fs.readdir(skinsDirDestination, { withFileTypes: true }).catch(() => [])
+    const modNames = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+
+    if (modNames.length > 0) {
+      const gamePath = path.join(await getLeaguePath(), 'Game')
+      const overlayDirDestination = path.join(TEMP_DIR, 'overlay')
+      const modsArg = modNames.join('/')
+      await promisifiedExec(
+        `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
+      )
+      runningProcess = spawn(
+        CSLOL_MANAGER_EXECUTABLE,
+        ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
+      )
+    }
+  }
 }
+
+export interface ChampionSkinEntry {
+  championId: number
+  championName: string
+  skinId: string
+  skinName: string
+}
+
+/**
+ * 获取所有已记住的英雄皮肤详情，供前端展示。
+ */
+export async function getChampionSkinsDetail(): Promise<ChampionSkinEntry[]> {
+  const championSkins = await getChampionSkins()
+  const allSkins = await listAllSkins()
+  const entries: ChampionSkinEntry[] = []
+
+  for (const [championIdStr, skinId] of Object.entries(championSkins)) {
+    const championId = parseInt(championIdStr, 10)
+    // Try to match a regular skin first
+    const matched = allSkins.find((s) => `${s.championId}-${s.id}` === skinId)
+    if (matched) {
+      entries.push({
+        championId,
+        championName: matched.championName ?? `ID:${championId}`,
+        skinId,
+        skinName: matched.name
+      })
+    } else {
+      // Not a regular skin — look for it as a chroma of the champion's skins
+      const championSkinsList = allSkins.filter((s) => s.championId === championId)
+      const chromaMatch = championSkinsList.find((s) =>
+        s.chromas?.some((c) => `${c.championId}-${c.id}` === skinId)
+      )
+      entries.push({
+        championId,
+        championName: chromaMatch?.championName ?? `ID:${championId}`,
+        skinId,
+        // Show the parent skin's name (without chroma suffix) for chroma selections
+        skinName: chromaMatch?.name ?? skinId
+      })
+    }
+  }
+
+  return entries
+}
+
+/**
+ * 一键清除所有已记住的英雄皮肤映射，并停止当前 overlay，清理临时目录。
+ */
+export async function clearAllSkins(): Promise<void> {
+  if (runningProcess) {
+    runningProcess.kill()
+    runningProcess = null
+  }
+  await setCurrentSkinId('')
+  await clearAllChampionSkins()
+  // 清理临时目录中的皮肤文件
+  await fs.remove(TEMP_DIR)
+}
+

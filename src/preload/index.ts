@@ -17,8 +17,15 @@ const api = {
   listSkins: (): Promise<Skin[]> => ipcRenderer.invoke('listSkins'),
   listChampions: (): Promise<Champion[]> => ipcRenderer.invoke('listChampions'),
   setSkin: (skin: Skin | Chroma): Promise<void> => ipcRenderer.invoke('setSkin', skin),
-  disableSkin: (): Promise<void> => ipcRenderer.invoke('disableSkin'),
+  disableSkin: (championId?: number): Promise<void> => ipcRenderer.invoke('disableSkin', championId),
+  clearAllSkins: (): Promise<void> =>
+    ipcRenderer.invoke('clearAllSkins'),
+  getChampionSkinsDetail: (): Promise<
+    Array<{ championId: number; championName: string; skinId: string; skinName: string }>
+  > => ipcRenderer.invoke('getChampionSkinsDetail'),
   getCurrentSkinId: (): Promise<string | null> => ipcRenderer.invoke('getCurrentSkinId'),
+  getChampionSkinId: (championId: number): Promise<string | null> =>
+    ipcRenderer.invoke('getChampionSkinId', championId),
   getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('getCloseBehavior'),
   setCloseBehavior: (behavior: string): Promise<void> => ipcRenderer.invoke('setCloseBehavior', behavior),
   refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),

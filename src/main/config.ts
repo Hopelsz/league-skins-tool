@@ -13,7 +13,8 @@ import { CONFIG_PATH } from './constants'
 const DEFAULT_CONFIG = {
   leaguePath: '',
   skinsPath: '',
-  currentSkinId: null as string | null
+  currentSkinId: null as string | null,
+  championSkins: {} as Record<string, string>
 }
 
 /**
@@ -27,7 +28,7 @@ async function configExists(): Promise<boolean> {
 /**
  * Read the config file safely, returning parsed object or default.
  */
-async function readConfig(): Promise<Record<string, string | null>> {
+async function readConfig(): Promise<Record<string, unknown>> {
   try {
     const exists = await fs.pathExists(CONFIG_PATH)
     if (!exists) {
@@ -54,7 +55,8 @@ async function readConfig(): Promise<Record<string, string | null>> {
  */
 export async function getConfigValue(key: string): Promise<string> {
   const config = await readConfig()
-  return config[key] ?? ''
+  const val = config[key]
+  return typeof val === 'string' ? val : ''
 }
 
 /**
@@ -190,6 +192,61 @@ export async function getCurrentSkinId(): Promise<string | null> {
 
 export async function setCurrentSkinId(skinId: string | null): Promise<void> {
   await setConfigValue('currentSkinId', skinId ?? '')
+}
+
+/**
+ * 获取所有英雄的皮肤映射 { championId: skinId }
+ */
+export async function getChampionSkins(): Promise<Record<string, string>> {
+  try {
+    const exists = await fs.pathExists(CONFIG_PATH)
+    if (!exists) return {}
+    const raw = await fs.readFile(CONFIG_PATH, 'utf-8')
+    if (!raw.trim()) return {}
+    const config = JSON.parse(raw)
+    return config.championSkins ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * 获取指定英雄记住的皮肤ID
+ */
+export async function getChampionSkinId(championId: number): Promise<string | null> {
+  const skins = await getChampionSkins()
+  return skins[String(championId)] ?? null
+}
+
+/**
+ * 设置指定英雄记住的皮肤ID
+ */
+export async function setChampionSkinId(championId: number, skinId: string): Promise<void> {
+  const config = await readConfig()
+  const championSkins = (config.championSkins as Record<string, string> | null) ?? {}
+  championSkins[String(championId)] = skinId
+  config.championSkins = championSkins
+  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
+}
+
+/**
+ * 移除指定英雄记住的皮肤ID
+ */
+export async function removeChampionSkinId(championId: number): Promise<void> {
+  const config = await readConfig()
+  const championSkins = (config.championSkins as Record<string, string> | null) ?? {}
+  delete championSkins[String(championId)]
+  config.championSkins = championSkins
+  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
+}
+
+/**
+ * 清除所有英雄的皮肤映射
+ */
+export async function clearAllChampionSkins(): Promise<void> {
+  const config = await readConfig()
+  config.championSkins = {}
+  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
 
 export type CloseBehavior = 'ask' | 'tray' | 'quit'

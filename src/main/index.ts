@@ -108,7 +108,9 @@ function createWindow(): void {
     return mainWindow?.isMaximized() ?? false
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('ready-to-show', () => {
+    mainWindow?.show()
+  })
 
   mainWindow.on('maximize', () => {
     mainWindow?.webContents.send('window-maximized', true)

@@ -38,8 +38,13 @@ export interface Api {
   listSkins: () => Promise<Skin[]>
   listChampions: () => Promise<Champion[]>
   setSkin: (skin: Skin | Chroma) => Promise<void>
-  disableSkin: () => Promise<void>
+  disableSkin: (championId?: number) => Promise<void>
+  clearAllSkins: () => Promise<void>
+  getChampionSkinsDetail: () => Promise<
+    Array<{ championId: number; championName: string; skinId: string; skinName: string }>
+  >
   getCurrentSkinId: () => Promise<string | null>
+  getChampionSkinId: (championId: number) => Promise<string | null>
   refreshLolSkins: () => Promise<Skin[]>
   minimizeWindow: () => void
   maximizeWindow: () => void
