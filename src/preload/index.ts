@@ -56,6 +56,17 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, championId: number, skinId: string | null) => callback(championId, skinId)
     ipcRenderer.on('skin-state-changed', handler)
     return () => ipcRenderer.removeListener('skin-state-changed', handler)
+  },
+  // LCU 通信事件
+  onLcuChampionSelected: (callback: (champion: Champion) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, champion: Champion) => callback(champion)
+    ipcRenderer.on('lcu-champion-selected', handler)
+    return () => ipcRenderer.removeListener('lcu-champion-selected', handler)
+  },
+  onLcuChampSelectEnded: (callback: () => void): (() => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('lcu-champ-select-ended', handler)
+    return () => ipcRenderer.removeListener('lcu-champ-select-ended', handler)
   }
 }
 

@@ -89,6 +89,22 @@ export default function App(): JSX.Element {
     }
   }, [selectedChampion, floatWindowEnabled])
 
+  // 监听 LCU 事件：游戏中选择了英雄 → 自动弹出悬浮窗
+  useEffect(() => {
+    const unsubSelected = window.api.onLcuChampionSelected((champion: Champion) => {
+      if (floatWindowEnabled) {
+        window.api.showFloatWindow(champion)
+      }
+    })
+    const unsubEnded = window.api.onLcuChampSelectEnded(() => {
+      window.api.hideFloatWindow()
+    })
+    return () => {
+      unsubSelected()
+      unsubEnded()
+    }
+  }, [floatWindowEnabled])
+
   const [loadingMetadata, setLoadingMetadata] = useState(false)
 
   const handlePathReady = async (): Promise<void> => {

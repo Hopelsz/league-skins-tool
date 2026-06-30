@@ -65,6 +65,9 @@ export interface Api {
   onFloatChampionData: (callback: (champion: Champion) => void) => () => void
   // 皮肤状态同步
   onSkinStateChanged: (callback: (championId: number, skinId: string | null) => void) => () => void
+  // LCU 通信事件
+  onLcuChampionSelected: (callback: (champion: Champion) => void) => () => void
+  onLcuChampSelectEnded: (callback: () => void) => () => void
 }
 
 declare global {

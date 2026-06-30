@@ -44,6 +44,22 @@ type SkinRaw = {
   chromas?: { id: number; name: string; colors: string[] }[]
 }
 
+// ======================== 缓存 ========================
+// 避免每次都重新解析元数据 JSON，大幅提升弹窗响应速度
+
+let cachedChampions: Champion[] | null = null
+let cachedSkins: Skin[] | null = null
+let cachedRawData: SkinRaw[] | null = null
+
+/**
+ * 清除缓存，在重新下载元数据后调用。
+ */
+export function invalidateMetadataCache(): void {
+  cachedChampions = null
+  cachedSkins = null
+  cachedRawData = null
+}
+
 /**
  * This function extracts the champion key from a splash art path.
  * @param splashPath  the splash art path to extract the champion key from.
@@ -59,10 +75,13 @@ function getChampionKeyFromSplashArt(splashPath: string): string | null {
 }
 
 async function loadSkinData(): Promise<SkinRaw[]> {
+  if (cachedRawData) return cachedRawData
+
   try {
     await fs.access(LOL_SKINS_METADATA_LOCATION)
     const content = await fs.readFile(LOL_SKINS_METADATA_LOCATION, 'utf-8')
-    return Object.values(JSON.parse(content)) as SkinRaw[]
+    cachedRawData = Object.values(JSON.parse(content)) as SkinRaw[]
+    return cachedRawData
   } catch {
     return []
   }
@@ -86,6 +105,8 @@ export function getChampSkinIdFromSkinId(skinId: number): { championId: number; 
  * @returns {Promise<Champion[]>} a list of champions.
  */
 export async function listChampions(): Promise<Champion[]> {
+  if (cachedChampions) return cachedChampions
+
   const rawSkins = await loadSkinData()
   const championsMap = new Map<number, Champion>()
 
@@ -108,7 +129,8 @@ export async function listChampions(): Promise<Champion[]> {
     })
   }
 
-  return Array.from(championsMap.values())
+  cachedChampions = Array.from(championsMap.values())
+  return cachedChampions
 }
 
 /**
@@ -116,6 +138,8 @@ export async function listChampions(): Promise<Champion[]> {
  * @returns {Promise<Skin[]>} a list of skins.
  */
 export async function listSkins(): Promise<Skin[]> {
+  if (cachedSkins) return cachedSkins
+
   const rawSkins = await loadSkinData()
   const champions = await listChampions()
   const championsById = new Map(champions.map((c) => [c.id, c]))
@@ -142,5 +166,6 @@ export async function listSkins(): Promise<Skin[]> {
     })
   }
 
-  return skins
+  cachedSkins = skins
+  return cachedSkins
 }

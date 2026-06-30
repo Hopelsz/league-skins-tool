@@ -11,6 +11,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import './api'
 import { type Champion } from './metadata'
+import { startLcuMonitor, stopLcuMonitor } from './lcu'
 
 import icon from '../../resources/icon.png?asset'
 
@@ -275,6 +276,9 @@ app.whenReady().then(() => {
   createTray()
   createWindow()
 
+  // 启动 LCU 监控（自动检测游戏中英雄选择）
+  startLcuMonitor()
+
   app.on('activate', function () {
     if (mainWindow) {
       mainWindow.show()
@@ -294,6 +298,7 @@ app.on('window-all-closed', () => {
 // 应用真正退出前清理托盘
 app.on('before-quit', () => {
   isQuitting = true
+  stopLcuMonitor()
   if (floatWindow && !floatWindow.isDestroyed()) {
     floatWindow.close()
   }

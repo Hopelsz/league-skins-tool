@@ -6,12 +6,15 @@ export default function SkinFloatWindow(): JSX.Element {
   const [champion, setChampion] = useState<Champion | null>(null)
   const [allSkins, setAllSkins] = useState<Skin[]>([])
   const [currentSkinId, setCurrentSkinId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
+  const [applyingId, setApplyingId] = useState<string | null>(null)  // 正在应用中的皮肤ID
+  const [dataLoading, setDataLoading] = useState(false)  // 初次加载皮肤数据
 
   // 监听来自主进程的英雄数据
   useEffect(() => {
     const unsubscribe = window.api.onFloatChampionData(async (champ: Champion) => {
       setChampion(champ)
+      setDataLoading(true)
       // 获取皮肤列表
       try {
         const skins = await window.api.listSkins()
@@ -21,6 +24,8 @@ export default function SkinFloatWindow(): JSX.Element {
         setCurrentSkinId(rememberedSkinId)
       } catch {
         setAllSkins([])
+      } finally {
+        setDataLoading(false)
       }
     })
     return unsubscribe
@@ -59,25 +64,31 @@ export default function SkinFloatWindow(): JSX.Element {
   }
 
   const handleApplySkin = async (skin: Skin): Promise<void> => {
-    if (isLoading) return
-    setIsLoading(true)
+    if (isApplying) return
+    const skinKey = `${skin.championId}-${skin.id}`
+    setIsApplying(true)
+    setApplyingId(skinKey)
     try {
-      if (`${skin.championId}-${skin.id}` === currentSkinId) {
+      if (skinKey === currentSkinId) {
         await window.api.disableSkin(skin.championId)
         setCurrentSkinId(null)
         return
       }
       await window.api.setSkin(skin)
-      setCurrentSkinId(`${skin.championId}-${skin.id}`)
+      setCurrentSkinId(skinKey)
+      // 选完皮肤自动关闭悬浮窗
+      window.api.hideFloatWindow()
     } finally {
-      setIsLoading(false)
+      setIsApplying(false)
+      setApplyingId(null)
     }
   }
 
   const handleApplyChroma = async (chroma: Chroma): Promise<void> => {
-    if (isLoading) return
+    if (isApplying) return
     const chromaId = `${chroma.championId}-${chroma.id}`
-    setIsLoading(true)
+    setIsApplying(true)
+    setApplyingId(chromaId)
     try {
       if (chromaId === currentSkinId) {
         await window.api.disableSkin(chroma.championId)
@@ -86,8 +97,11 @@ export default function SkinFloatWindow(): JSX.Element {
       }
       await window.api.setSkin(chroma)
       setCurrentSkinId(chromaId)
+      // 选完炫彩自动关闭悬浮窗
+      window.api.hideFloatWindow()
     } finally {
-      setIsLoading(false)
+      setIsApplying(false)
+      setApplyingId(null)
     }
   }
 
@@ -120,31 +134,38 @@ export default function SkinFloatWindow(): JSX.Element {
 
       {/* 皮肤列表 */}
       <div className="float-window-body">
-        {championSkins.length === 0 ? (
+        {dataLoading ? (
+          <div className="float-window-empty">
+            <div className="float-window-spinner" />
+            <p>加载皮肤数据...</p>
+          </div>
+        ) : championSkins.length === 0 ? (
           <div className="float-window-empty">
             <p>没有找到该英雄的皮肤</p>
           </div>
         ) : (
-          <>
-            {isLoading && (
-              <div className="float-window-loading-overlay">
-                <div className="float-window-spinner" />
-              </div>
-            )}
-            <div className="float-window-skin-grid">
-              {championSkins.map((skin) => (
+          <div className="float-window-skin-grid">
+            {championSkins.map((skin) => {
+              const skinKey = `${skin.championId}-${skin.id}`
+              const isApplyingThis = isApplying && applyingId === skinKey
+              return (
                 <div
                   key={skin.id}
-                  className={`float-skin-card ${isSkinOrChromaApplied(skin) ? 'applied' : ''}`}
+                  className={`float-skin-card ${isSkinOrChromaApplied(skin) ? 'applied' : ''} ${isApplyingThis ? 'applying' : ''}`}
                   onClick={() => handleApplySkin(skin)}
                   role="button"
                   tabIndex={0}
                 >
                   <div className="float-skin-image-wrapper">
                     <div className="img">
-                      <img src={skin.image} alt={skin.name} />
+                      <img src={skin.image} alt={skin.name} loading="lazy" />
                     </div>
-                    {isSkinOrChromaApplied(skin) && (
+                    {isApplyingThis && (
+                      <div className="float-skin-applying-overlay">
+                        <div className="float-window-spinner" />
+                      </div>
+                    )}
+                    {isSkinOrChromaApplied(skin) && !isApplyingThis && (
                       <div className="float-skin-applied-badge" title="已应用">
                         <svg viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="10" fill="#c8aa6e"/>
@@ -161,12 +182,13 @@ export default function SkinFloatWindow(): JSX.Element {
                       {skin.chromas
                         .filter((c) => c.colors?.length)
                         .map((chroma) => {
-                          const isSelected =
-                            `${chroma.championId}-${chroma.id}` === currentSkinId
+                          const chromaKey = `${chroma.championId}-${chroma.id}`
+                          const isSelected = chromaKey === currentSkinId
+                          const isApplyingChroma = isApplying && applyingId === chromaKey
                           return (
                             <div
                               key={chroma.id}
-                              className={`float-chroma-dot ${isSelected ? 'selected' : ''}`}
+                              className={`float-chroma-dot ${isSelected ? 'selected' : ''} ${isApplyingChroma ? 'applying' : ''}`}
                               style={{
                                 background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})`
                               }}
@@ -182,9 +204,9 @@ export default function SkinFloatWindow(): JSX.Element {
                   )}
                   <div className="float-skin-name">{skin.name}</div>
                 </div>
-              ))}
-            </div>
-          </>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>
