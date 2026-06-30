@@ -274,6 +274,7 @@ export default function ChampionSelector({
                       {championSkinsDetail.map((entry) => (
                         <div
                           key={entry.championId}
+                          className="applied-skin-entry"
                           style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -283,7 +284,8 @@ export default function ChampionSelector({
                             fontSize: '0.85rem',
                             borderBottom: '1px solid rgba(200,170,110,0.1)',
                             fontFamily: 'Beaufort, sans-serif',
-                            letterSpacing: '0.04em'
+                            letterSpacing: '0.04em',
+                            position: 'relative'
                           }}
                         >
                           <span style={{ color: '#f0e6d2', fontWeight: 'bold' }}>
@@ -292,6 +294,25 @@ export default function ChampionSelector({
                           <span style={{ color: '#a09b8c', textAlign: 'right', flex: 1, marginLeft: '0.75rem' }}>
                             {entry.skinName}
                           </span>
+                          <div className="applied-skin-delete-overlay">
+                            <button
+                              className="applied-skin-delete"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  await window.api.disableSkin(entry.championId)
+                                  setChampionSkinsDetail((prev) =>
+                                    prev.filter((item) => item.championId !== entry.championId)
+                                  )
+                                  setAlert(`已移除 ${entry.championName} 的皮肤记忆`)
+                                } catch (err) {
+                                  setAlert(`移除失败: ${err instanceof Error ? err.message : '未知错误'}`)
+                                }
+                              }}
+                            >
+                              删除
+                            </button>
+                          </div>
                         </div>
                       ))}
                       <div style={{

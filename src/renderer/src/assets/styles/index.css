@@ -618,6 +618,54 @@ svg.cool-border:hover path {
   transform: rotate(45deg);
 }
 
+/* Applied Skins Entry - hover delete overlay */
+.applied-skin-entry .applied-skin-delete-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 14, 0.78);
+  border-radius: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1;
+}
+
+.applied-skin-entry:hover .applied-skin-delete-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.applied-skin-entry .applied-skin-delete {
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 32px;
+  padding: 0 16px;
+  margin: 0;
+  border-radius: 6px;
+  border: 1.5px solid rgba(224, 80, 80, 0.5);
+  background: rgba(180, 50, 50, 0.4);
+  color: #fff;
+  cursor: pointer;
+  outline: none;
+  font-size: 0.8rem;
+  font-family: 'Beaufort', sans-serif;
+  letter-spacing: 0.04em;
+  transition: all 0.18s ease;
+}
+
+.applied-skin-entry .applied-skin-delete:hover {
+  background: rgba(210, 60, 60, 0.65);
+  border-color: rgba(240, 100, 100, 0.75);
+  box-shadow: 0 0 10px rgba(200, 50, 50, 0.35);
+}
+
 .settings-item {
   display: flex;
   align-items: center;
