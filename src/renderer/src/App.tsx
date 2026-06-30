@@ -6,6 +6,7 @@ import WelcomePage from '@renderer/components/WelcomePage'
 import PathSetter from '@renderer/components/PathSetter'
 import ChampionSelector from '@renderer/components/ChampionSelector'
 import SkinSelector from '@renderer/components/SkinSelector'
+import SkinFloatWindow from '@renderer/components/SkinFloatWindow'
 import WindowControls from '@renderer/components/WindowControls'
 import OffCanvas from '@renderer/components/OffCanvas'
 import RefreshButton from '@renderer/components/RefreshButton'
@@ -22,11 +23,25 @@ export default function App(): JSX.Element {
   const [importingSkins, setImportingSkins] = useState(false)
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
+  const [floatWindowEnabled, setFloatWindowEnabled] = useState(true)
+  const [settingsTab, setSettingsTab] = useState('game')
   const { setAlert } = useAlert()
 
+  // 检测是否为浮动窗口
+  const isFloatWindow =
+    window.location.hash === '#float' ||
+    new URLSearchParams(window.location.search).get('float') === 'true'
+
+  // 浮动窗口模式：只渲染 SkinFloatWindow
+  if (isFloatWindow) {
+    return (
+      <Providers>
+        <SkinFloatWindow />
+      </Providers>
+    )
+  }
+
   // 启动时自动检测：路径已配置则直接进主界面，否则显示欢迎页
-  // 注意：这里不再调用 refreshLolSkins()，避免与 SkinSelector 中的调用产生竞态。
-  // 刷新皮肤数据的逻辑统一由 SkinSelector 通过 refreshTrigger 触发。
   useEffect(() => {
     ;(async (): Promise<void> => {
       const valid = await window.api.isCurrentLeaguePathValid()
@@ -48,6 +63,21 @@ export default function App(): JSX.Element {
   useEffect(() => {
     document.getElementById('root')?.scrollTo(0, 0)
   }, [selectedChampion])
+
+  // 启动时加载浮动窗口开关状态
+  useEffect(() => {
+    ;(async (): Promise<void> => {
+      const enabled = await window.api.getFloatWindowEnabled()
+      setFloatWindowEnabled(enabled)
+    })()
+  }, [])
+
+  // 选择英雄时同时弹出悬浮窗（新增功能，不影响原有操作）
+  useEffect(() => {
+    if (selectedChampion && floatWindowEnabled) {
+      window.api.showFloatWindow(selectedChampion)
+    }
+  }, [selectedChampion, floatWindowEnabled])
 
   const [loadingMetadata, setLoadingMetadata] = useState(false)
 
@@ -163,27 +193,67 @@ export default function App(): JSX.Element {
             <div className="settings-header">
               <h3>设置</h3>
             </div>
+            {/* 标签页导航 */}
+            <div className="settings-tabs">
+              <button
+                className={`settings-tab ${settingsTab === 'game' ? 'active' : ''}`}
+                onClick={() => setSettingsTab('game')}
+              >
+                游戏设置
+              </button>
+              <button
+                className={`settings-tab ${settingsTab === 'interface' ? 'active' : ''}`}
+                onClick={() => setSettingsTab('interface')}
+              >
+                界面设置
+              </button>
+            </div>
             <div className="settings-content">
-              <div className="settings-section">
-                <h4>游戏设置</h4>
-                <SettingsButton
-                  onClick={handleChangePath}
-                  isLoading={false}
-                  isSuccess={changePathSuccess}
-                  icon="folder"
-                  title="设置游戏路径"
-                  description="修改英雄联盟安装目录"
-                />
-                <SettingsButton
-                  onClick={handleSelectLocalSkins}
-                  isLoading={importingSkins}
-                  isSuccess={importSuccess}
-                  icon="folder"
-                  title="使用本地 skins"
-                  description="导入本地皮肤资源文件"
-                />
-              </div>
-
+              {settingsTab === 'game' && (
+                <div className="settings-section">
+                  <SettingsButton
+                    onClick={handleChangePath}
+                    isLoading={false}
+                    isSuccess={changePathSuccess}
+                    icon="folder"
+                    title="设置游戏路径"
+                    description="修改英雄联盟安装目录"
+                  />
+                  <SettingsButton
+                    onClick={handleSelectLocalSkins}
+                    isLoading={importingSkins}
+                    isSuccess={importSuccess}
+                    icon="folder"
+                    title="使用本地 skins"
+                    description="导入本地皮肤资源文件"
+                  />
+                </div>
+              )}
+              {settingsTab === 'interface' && (
+                <div className="settings-section">
+                  <div className="settings-toggle-item">
+                    <div className="settings-toggle-text">
+                      <span className="settings-toggle-title">悬浮窗</span>
+                      <span className="settings-toggle-desc">
+                        {floatWindowEnabled ? '选英雄时自动弹出皮肤悬浮窗' : '关闭后不会弹出悬浮窗'}
+                      </span>
+                    </div>
+                    <label
+                      className={`toggle-switch ${floatWindowEnabled ? 'active' : ''}`}
+                      onClick={async () => {
+                        const next = !floatWindowEnabled
+                        setFloatWindowEnabled(next)
+                        await window.api.setFloatWindowEnabled(next)
+                        if (!next) {
+                          window.api.hideFloatWindow()
+                        }
+                      }}
+                    >
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           </OffCanvas>
           {/* 使用说明弹窗 */}

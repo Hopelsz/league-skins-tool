@@ -28,6 +28,8 @@ const api = {
     ipcRenderer.invoke('getChampionSkinId', championId),
   getCloseBehavior: (): Promise<string> => ipcRenderer.invoke('getCloseBehavior'),
   setCloseBehavior: (behavior: string): Promise<void> => ipcRenderer.invoke('setCloseBehavior', behavior),
+  getFloatWindowEnabled: (): Promise<boolean> => ipcRenderer.invoke('getFloatWindowEnabled'),
+  setFloatWindowEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setFloatWindowEnabled', enabled),
   refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),
   // Window controls
   minimizeWindow: (): void => ipcRenderer.send('window-minimize'),
@@ -40,9 +42,24 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, maximized: boolean) => callback(maximized)
     ipcRenderer.on('window-maximized', handler)
     return () => ipcRenderer.removeListener('window-maximized', handler)
+  },
+  // 浮动窗口
+  showFloatWindow: (champion: Champion): void => ipcRenderer.send('show-float-window', champion),
+  hideFloatWindow: (): void => ipcRenderer.send('hide-float-window'),
+  onFloatChampionData: (callback: (champion: Champion) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, champion: Champion) => callback(champion)
+    ipcRenderer.on('float-champion-data', handler)
+    return () => ipcRenderer.removeListener('float-champion-data', handler)
+  },
+  // 皮肤状态同步
+  onSkinStateChanged: (callback: (championId: number, skinId: string | null) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, championId: number, skinId: string | null) => callback(championId, skinId)
+    ipcRenderer.on('skin-state-changed', handler)
+    return () => ipcRenderer.removeListener('skin-state-changed', handler)
   }
 }
 
 contextBridge.exposeInMainWorld('api', api)
 
+// 导出 api 类型供 .d.ts 使用
 export type api = typeof api

@@ -55,6 +55,14 @@ export interface Api {
   onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
   getCloseBehavior: () => Promise<string>
   setCloseBehavior: (behavior: string) => Promise<void>
+  getFloatWindowEnabled: () => Promise<boolean>
+  setFloatWindowEnabled: (enabled: boolean) => Promise<void>
+  // 浮动窗口
+  showFloatWindow: (champion: Champion) => void
+  hideFloatWindow: () => void
+  onFloatChampionData: (callback: (champion: Champion) => void) => () => void
+  // 皮肤状态同步
+  onSkinStateChanged: (callback: (championId: number, skinId: string | null) => void) => () => void
 }
 
 declare global {

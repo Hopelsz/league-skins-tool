@@ -5,9 +5,9 @@
  * └───────────────────────────────────────────────────────────────────────────────┘
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 
-import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior } from './config'
+import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled } from './config'
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions } from './metadata'
@@ -21,14 +21,28 @@ ipcMain.handle('useLocalLolSkins', async (_, localPath: string) => useLocalLolSk
 ipcMain.handle('checkLolSkinsExist', checkLolSkinsExist)
 ipcMain.handle('listSkins', listSkins)
 ipcMain.handle('listChampions', listChampions)
-ipcMain.handle('setSkin', (_, skin: Skin | Chroma) => setSkin(skin))
-ipcMain.handle('disableSkin', (_, championId?: number) => disableSkin(championId))
+ipcMain.handle('setSkin', async (_, skin: Skin | Chroma) => {
+  await setSkin(skin)
+  // 广播皮肤状态变更到所有窗口
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('skin-state-changed', skin.championId, `${skin.championId}-${skin.id}`)
+  })
+})
+ipcMain.handle('disableSkin', async (_, championId?: number) => {
+  await disableSkin(championId)
+  // 广播皮肤状态变更到所有窗口
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('skin-state-changed', championId ?? 0, null)
+  })
+})
 ipcMain.handle('clearAllSkins', () => clearAllSkins())
 ipcMain.handle('getChampionSkinsDetail', () => getChampionSkinsDetail())
 ipcMain.handle('getCurrentSkinId', getCurrentSkinId)
 ipcMain.handle('getChampionSkinId', (_, championId: number) => getChampionSkinId(championId))
 ipcMain.handle('getCloseBehavior', getCloseBehavior)
 ipcMain.handle('setCloseBehavior', (_, behavior) => setCloseBehavior(behavior))
+ipcMain.handle('getFloatWindowEnabled', getFloatWindowEnabled)
+ipcMain.handle('setFloatWindowEnabled', (_, enabled: boolean) => setFloatWindowEnabled(enabled))
 ipcMain.handle('refreshLolSkins', async () => {
   // Force re-download metadata to get latest chroma names
   // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入

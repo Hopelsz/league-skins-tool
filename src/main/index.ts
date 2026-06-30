@@ -10,10 +10,12 @@ import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'ele
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import './api'
+import { type Champion } from './metadata'
 
 import icon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
+let floatWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 
@@ -33,6 +35,8 @@ function createTray(): void {
         if (mainWindow) {
           mainWindow.show()
           mainWindow.focus()
+          // 如果浮动窗口之前是打开的，也一并显示
+          if (floatWindow) floatWindow.show()
         } else {
           createWindow()
         }
@@ -55,6 +59,7 @@ function createTray(): void {
     if (mainWindow) {
       mainWindow.show()
       mainWindow.focus()
+      if (floatWindow) floatWindow.show()
     } else {
       createWindow()
     }
@@ -133,9 +138,118 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL'])
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  else mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    mainWindow.loadURL(devUrl)
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+
+  // ========== 浮动窗口 IPC 处理 ==========
+  setupFloatWindowIPC()
+}
+
+// ---------- 浮动窗口 ----------
+
+function getFloatWindowURL(): string {
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    return `${process.env['ELECTRON_RENDERER_URL']}?float=true`
+  }
+  return join(__dirname, '../renderer/index.html')
+}
+
+function getFloatWindowURLOptions(): Record<string, string> {
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    return {}
+  }
+  // 生产环境通过 hash 传参
+  return { hash: 'float' }
+}
+
+function createFloatWindow(): BrowserWindow {
+  const mainBounds = mainWindow!.getBounds()
+
+  floatWindow = new BrowserWindow({
+    width: 380,
+    height: mainBounds.height,
+    x: mainBounds.x + mainBounds.width,
+    y: mainBounds.y,
+    show: false,
+    autoHideMenuBar: true,
+    frame: false,
+    resizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    backgroundColor: '#091428ff',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  floatWindow.on('close', () => {
+    floatWindow = null
+  })
+
+  // 加载页面
+  const urlOpts = getFloatWindowURLOptions()
+  if (Object.keys(urlOpts).length > 0) {
+    floatWindow.loadFile(getFloatWindowURL(), urlOpts)
+  } else {
+    floatWindow.loadURL(getFloatWindowURL())
+  }
+
+  return floatWindow
+}
+
+function setupFloatWindowIPC(): void {
+  // 主窗口请求显示浮动窗口
+  ipcMain.on('show-float-window', (_event, champion: Champion) => {
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      // 更新位置
+      const mainBounds = mainWindow!.getBounds()
+      floatWindow.setBounds({
+        x: mainBounds.x + mainBounds.width,
+        y: mainBounds.y,
+        width: 380,
+        height: mainBounds.height
+      })
+      floatWindow.show()
+      floatWindow.focus()
+    } else {
+      floatWindow = createFloatWindow()
+      floatWindow.once('ready-to-show', () => {
+        if (floatWindow) {
+          const mainBounds = mainWindow!.getBounds()
+          floatWindow.setBounds({
+            x: mainBounds.x + mainBounds.width,
+            y: mainBounds.y,
+            width: 380,
+            height: mainBounds.height
+          })
+          floatWindow.show()
+          // 发送英雄数据到浮动窗口
+          floatWindow.webContents.send('float-champion-data', champion)
+        }
+      })
+      // 如果已经 ready 了（极快加载的情况）
+      floatWindow.webContents.on('did-finish-load', () => {
+        if (floatWindow) {
+          floatWindow.webContents.send('float-champion-data', champion)
+        }
+      })
+      return
+    }
+    // 窗口已存在，直接发送数据
+    floatWindow.webContents.send('float-champion-data', champion)
+  })
+
+  // 主窗口请求隐藏浮动窗口
+  ipcMain.on('hide-float-window', () => {
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      floatWindow.hide()
+    }
+  })
 }
 
 app.whenReady().then(() => {
@@ -150,6 +264,7 @@ app.whenReady().then(() => {
     if (mainWindow) {
       mainWindow.show()
       mainWindow.focus()
+      if (floatWindow) floatWindow.show()
     } else {
       createWindow()
     }
@@ -164,6 +279,9 @@ app.on('window-all-closed', () => {
 // 应用真正退出前清理托盘
 app.on('before-quit', () => {
   isQuitting = true
+  if (floatWindow && !floatWindow.isDestroyed()) {
+    floatWindow.close()
+  }
   if (tray) {
     tray.destroy()
     tray = null

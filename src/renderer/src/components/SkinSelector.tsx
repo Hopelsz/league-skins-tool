@@ -97,6 +97,16 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
     })()
   }, [champion?.id])
 
+  // 监听皮肤状态变更（来自悬浮窗的操作）
+  useEffect(() => {
+    const unsubscribe = window.api.onSkinStateChanged((championId: number, skinId: string | null) => {
+      if (champion && champion.id === championId) {
+        setCurrentSkinId(skinId)
+      }
+    })
+    return unsubscribe
+  }, [champion])
+
   const championSkins =
     champion === null ? [] : allSkins.filter((skin) => skin.championId === champion.id)
 

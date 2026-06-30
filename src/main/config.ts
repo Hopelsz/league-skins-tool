@@ -261,6 +261,16 @@ export async function setCloseBehavior(behavior: CloseBehavior): Promise<void> {
   await setConfigValue('closeBehavior', behavior)
 }
 
+export async function getFloatWindowEnabled(): Promise<boolean> {
+  const val = await getConfigValue('floatWindowEnabled')
+  // 默认开启
+  return val !== 'false'
+}
+
+export async function setFloatWindowEnabled(enabled: boolean): Promise<void> {
+  await setConfigValue('floatWindowEnabled', String(enabled))
+}
+
 /**
  * This function asks the user to select the local skins folder.
  * @returns {Promise<string | null>} the selected path or null if canceled.
