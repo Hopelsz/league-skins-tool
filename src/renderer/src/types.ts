@@ -27,6 +27,8 @@ export interface Chroma {
   colors?: string[]
 }
 
+export type CloseBehavior = 'ask' | 'tray' | 'quit'
+
 export interface Api {
   isCurrentLeaguePathValid: () => Promise<boolean>
   askAndSetLeaguePath: () => Promise<boolean>
@@ -53,8 +55,8 @@ export interface Api {
   quitApp: () => void
   isWindowMaximized: () => Promise<boolean>
   onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
-  getCloseBehavior: () => Promise<string>
-  setCloseBehavior: (behavior: string) => Promise<void>
+  getCloseBehavior: () => Promise<CloseBehavior>
+  setCloseBehavior: (behavior: CloseBehavior) => Promise<void>
   getFloatWindowEnabled: () => Promise<boolean>
   setFloatWindowEnabled: (enabled: boolean) => Promise<void>
   // 浮动窗口

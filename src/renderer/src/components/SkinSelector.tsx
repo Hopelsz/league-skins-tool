@@ -38,6 +38,7 @@ function ChromaSelector({ skin, currentSkinId, setCurrentSkinId, isLoading, setI
               key={chroma.id}
               className={`chroma-circle ${isChromaSelected ? 'selected' : ''}`}
               style={{ background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})` }}
+              title={chroma.name}
               tabIndex={0}
               role="button"
               onClick={async (e) => {

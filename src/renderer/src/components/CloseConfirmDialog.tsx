@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import type { CloseBehavior } from '../types'
+
 interface CloseConfirmDialogProps {
   onHideToTray: () => void
   onQuit: () => void
@@ -9,6 +12,15 @@ export default function CloseConfirmDialog({
   onQuit,
   onCancel
 }: CloseConfirmDialogProps): JSX.Element {
+  const [remember, setRemember] = useState(false)
+
+  const handleAction = async (behavior: CloseBehavior, action: () => void): Promise<void> => {
+    if (remember) {
+      await window.api.setCloseBehavior(behavior)
+    }
+    action()
+  }
+
   return (
     <div
       className="window-no-drag"
@@ -59,7 +71,7 @@ export default function CloseConfirmDialog({
         {/* 描述 */}
         <p
           style={{
-            margin: '0 0 24px 0',
+            margin: '0 0 16px 0',
             fontSize: '14px',
             color: '#a09b8c',
             lineHeight: '1.6',
@@ -68,6 +80,28 @@ export default function CloseConfirmDialog({
         >
           您是想将程序最小化到系统托盘继续运行，还是彻底退出程序？
         </p>
+
+        {/* 记住选择 */}
+        <label
+          className="close-remember"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: '0 0 20px 32px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            color: '#a09b8c'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="close-remember-checkbox"
+          />
+          记住我的选择，下次不再询问
+        </label>
 
         {/* 按钮 */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -97,7 +131,7 @@ export default function CloseConfirmDialog({
           </button>
 
           <button
-            onClick={onQuit}
+            onClick={() => handleAction('quit', onQuit)}
             style={{
               padding: '8px 20px',
               fontSize: '13px',
@@ -122,7 +156,7 @@ export default function CloseConfirmDialog({
           </button>
 
           <button
-            onClick={onHideToTray}
+            onClick={() => handleAction('tray', onHideToTray)}
             style={{
               padding: '8px 20px',
               fontSize: '13px',

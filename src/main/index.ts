@@ -252,10 +252,25 @@ function setupFloatWindowIPC(): void {
   })
 }
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
-  app.requestSingleInstanceLock()
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+
+  // 第二次启动时恢复窗口，而不是创建新实例
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      if (floatWindow) floatWindow.show()
+    }
+  })
 
   createTray()
   createWindow()

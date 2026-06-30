@@ -541,6 +541,83 @@ svg.cool-border:hover path {
   background: #c8aa6e;
 }
 
+/* Settings Radio Group */
+.settings-radio-label {
+  display: block;
+  font-family: 'Beaufort', sans-serif;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #f0e6d2;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+/* Segmented Control */
+.settings-segmented {
+  display: inline-flex;
+  background: #0f1317;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmented-btn {
+  padding: 0.35rem 0.9rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Spiegel', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #5a6a7a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.segmented-btn:hover {
+  color: #a09b8c;
+}
+
+.segmented-btn.active {
+  background: #c8aa6e20;
+  color: #c8aa6e;
+  box-shadow: 0 0 0 1px #c8aa6e40;
+}
+
+/* Close Dialog Remember Checkbox */
+.close-remember-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #3a3a3a;
+  border-radius: 3px;
+  background: #1e2328;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.close-remember-checkbox:checked {
+  border-color: #c8aa6e;
+  background: #785a28;
+}
+
+.close-remember-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #c8aa6e;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 .settings-item {
   display: flex;
   align-items: center;

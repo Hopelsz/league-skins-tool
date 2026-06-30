@@ -108,7 +108,7 @@ export default function SkinFloatWindow(): JSX.Element {
           <span className="float-window-champion-alias">{champion.alias}</span>
         </div>
         <div className="float-window-header-actions">
-          <span className="float-window-skin-count">{championSkins.length} 皮肤</span>
+          <span className="float-window-skin-count">{championSkins.length} 个皮肤</span>
           <div className="float-window-header-divider" />
           <button className="float-window-close" onClick={handleClose} title="关闭">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

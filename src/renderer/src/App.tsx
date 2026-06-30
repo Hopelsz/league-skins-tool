@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-import { Champion } from './types'
+import { Champion, CloseBehavior } from './types'
 import Providers from '@renderer/components/providers/Main'
 import WelcomePage from '@renderer/components/WelcomePage'
 import PathSetter from '@renderer/components/PathSetter'
@@ -24,6 +24,7 @@ export default function App(): JSX.Element {
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const [floatWindowEnabled, setFloatWindowEnabled] = useState(true)
+  const [closeBehaviorValue, setCloseBehaviorValue] = useState<CloseBehavior>('ask')
   const [settingsTab, setSettingsTab] = useState('game')
   const { setAlert } = useAlert()
 
@@ -64,13 +65,22 @@ export default function App(): JSX.Element {
     document.getElementById('root')?.scrollTo(0, 0)
   }, [selectedChampion])
 
-  // 启动时加载浮动窗口开关状态
+  // 启动时加载浮动窗口开关状态 & 关闭行为
   useEffect(() => {
     ;(async (): Promise<void> => {
       const enabled = await window.api.getFloatWindowEnabled()
       setFloatWindowEnabled(enabled)
+      const behavior = await window.api.getCloseBehavior()
+      setCloseBehaviorValue(behavior)
     })()
   }, [])
+
+  // 打开设置面板时重新加载关闭行为（确保与关闭弹窗中记住的选择同步）
+  useEffect(() => {
+    if (showSettings) {
+      window.api.getCloseBehavior().then(setCloseBehaviorValue)
+    }
+  }, [showSettings])
 
   // 选择英雄时同时弹出悬浮窗（新增功能，不影响原有操作）
   useEffect(() => {
@@ -251,6 +261,25 @@ export default function App(): JSX.Element {
                     >
                       <span className="toggle-slider" />
                     </label>
+                  </div>
+                  <span className="settings-radio-label">关闭按钮行为</span>
+                  <div className="settings-segmented">
+                    {([
+                      ['ask', '每次询问'],
+                      ['tray', '最小化到托盘'],
+                      ['quit', '退出程序']
+                    ] as [CloseBehavior, string][]).map(([value, label]) => (
+                      <button
+                        key={value}
+                        className={`segmented-btn ${closeBehaviorValue === value ? 'active' : ''}`}
+                        onClick={async () => {
+                          setCloseBehaviorValue(value)
+                          await window.api.setCloseBehavior(value)
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

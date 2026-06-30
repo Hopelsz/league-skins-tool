@@ -27,8 +27,15 @@ export default function WindowControls({ showSettings, setShowSettings }: Window
     window.api.maximizeWindow()
   }
 
-  const handleClose = (): void => {
-    setShowCloseDialog(true)
+  const handleClose = async (): Promise<void> => {
+    const behavior = await window.api.getCloseBehavior()
+    if (behavior === 'tray') {
+      window.api.hideWindow()
+    } else if (behavior === 'quit') {
+      window.api.quitApp()
+    } else {
+      setShowCloseDialog(true)
+    }
   }
 
   const handleHideToTray = (): void => {
