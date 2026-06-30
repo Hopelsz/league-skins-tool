@@ -75,6 +75,11 @@ let championMap: Map<number, Champion> | null = null
 let connectionVerified = false
 let lastFoundLeaguePath: string | null = null
 
+// 进程扫描限流：避免 execSync 频繁阻塞主线程
+let lastProcessScanTime = 0
+const PROCESS_SCAN_MIN_INTERVAL = 10000 // 至少间隔 10 秒
+let credentialsFromProcess = false // 标记凭据是否来自进程扫描
+
 // ======================== 内部工具函数 ========================
 
 /** 读取 LCU lockfile，获取连接凭据 */
@@ -85,12 +90,24 @@ function readLockfile(leaguePath: string): LcuCredentials | null {
       return null
     }
     const content = fs.readFileSync(lockfilePath, 'utf-8').trim()
+    // 空文件（如腾讯/WeGame 旧版残留的 0 字节 lockfile）直接跳过
+    if (!content) return null
+
+    // Riot Client 格式的 lockfile 里存的是启动器凭据，不是 LCU 凭据
+    // 格式: "Riot Client:<rc_port>:<rc_app_port>:<rc_token>:https"
+    // 这种情况下必须走进程扫描才能拿到真正的 LCU 端口和 token
+    if (content.startsWith('Riot Client:')) {
+      console.log(`${TAG} ℹ️ 检测到 Riot Client lockfile，将改用进程扫描获取 LCU 凭据`)
+      return null
+    }
+
+    // 标准 LeagueClient lockfile 格式: "LeagueClient:<port>:<password>:<protocol>"
     const parts = content.split(':')
-    if (parts.length >= 5) {
+    if (parts.length >= 4) {
       return {
         port: parseInt(parts[2], 10),
         password: parts[3],
-        protocol: parts[4]
+        protocol: parts[4] ?? 'https'
       }
     }
     console.log(`${TAG} ⚠️ lockfile 格式异常: ${content}`)
@@ -103,9 +120,15 @@ function readLockfile(leaguePath: string): LcuCredentials | null {
 
 /**
  * 通过查找 LeagueClientUx.exe 进程的命令行参数获取 LCU 连接信息
- * 这是最可靠的方法，因为命令行中直接包含 port 和 password
+ * 内置限流保护：距上次扫描不足 10 秒时跳过（除非强制刷新）
  */
-function getLcuFromProcess(): LcuCredentials | null {
+function getLcuFromProcess(force = false): LcuCredentials | null {
+  const now = Date.now()
+  if (!force && now - lastProcessScanTime < PROCESS_SCAN_MIN_INTERVAL) {
+    return null // 限流跳过
+  }
+  lastProcessScanTime = now
+
   try {
     let output = ''
 
@@ -141,6 +164,7 @@ function getLcuFromProcess(): LcuCredentials | null {
         protocol: 'https'
       }
       console.log(`${TAG} ✅ 从进程发现 LCU → port=${creds.port}`)
+      credentialsFromProcess = true
       return creds
     }
   } catch {
@@ -153,8 +177,8 @@ function getLcuFromProcess(): LcuCredentials | null {
  * 在常见位置搜索 lockfile
  */
 function findLockfile(): LcuCredentials | null {
-  // 方法1: 从命令行参数获取（最可靠）
-  const fromProcess = getLcuFromProcess()
+  // 方法1: 从命令行参数获取（最可靠），force=true 跳过限流
+  const fromProcess = getLcuFromProcess(true)
   if (fromProcess) return fromProcess
 
   // 方法2: 从配置的 leaguePath 读取
@@ -282,55 +306,72 @@ async function verifyConnection(): Promise<boolean> {
     console.log(`${TAG} ✅ LCU 连接验证成功`)
     return true
   }
+  // 验证失败：如果凭据来自进程扫描，标记失效以触发重新扫描
+  if (credentialsFromProcess) {
+    console.log(`${TAG} ⚠️ 连接验证失败，将触发进程重新扫描`)
+    credentialsFromProcess = false
+  }
   return false
+}
+
+/**
+ * 尝试用 creds 更新全局凭据，如有变化则重置状态
+ * @returns true 凭据有效且已使用
+ */
+function tryApplyCredentials(newCreds: LcuCredentials): boolean {
+  const isChanged =
+    !credentials ||
+    credentials.port !== newCreds.port ||
+    credentials.password !== newCreds.password
+
+  if (isChanged) {
+    credentials = newCreds
+    connectionVerified = false
+    lastPhase = null
+    lastSelectedChampionId = null
+    console.log(`${TAG} 🔄 凭据已更新 (port=${newCreds.port})`)
+  }
+  return true
 }
 
 /** 检查并刷新 LCU 连接凭据 */
 async function refreshCredentials(): Promise<boolean> {
-  // 方法1: 从配置路径读取
+  // 优先级1: 从配置路径读取 lockfile
   const leaguePath = await getLeaguePath()
   if (leaguePath) {
-    lastFoundLeaguePath = leaguePath
-    const newCreds = readLockfile(leaguePath)
-    if (newCreds) {
-      const isChanged =
-        !credentials ||
-        credentials.port !== newCreds.port ||
-        credentials.password !== newCreds.password
+    const lockfileDirs = [
+      path.join(leaguePath, 'Riot Client Data', 'User Data', 'Config'),
+      path.join(leaguePath, 'LeagueClient'),
+      leaguePath,
+    ]
 
-      if (isChanged) {
-        credentials = newCreds
-        connectionVerified = false
-        lastPhase = null
-        lastSelectedChampionId = null
-        console.log(`${TAG} 🔄 凭据已更新 (port=${newCreds.port})`)
+    for (const dir of lockfileDirs) {
+      const creds = readLockfile(dir)
+      if (creds) {
+        lastFoundLeaguePath = dir
+        credentialsFromProcess = false
+        return tryApplyCredentials(creds)
       }
-      return true
     }
   }
 
-  // 方法2: 自动搜索（进程 + 常见路径）
+  // 优先级2: 如果已从进程获取过凭据，先验证是否仍然有效
+  if (credentials && credentialsFromProcess) {
+    // 凭据还在，直接复用，避免反复 execSync
+    return true
+  }
+
+  // 优先级3: 自动搜索（进程扫描 + 常见路径）
   const found = findLockfile()
   if (found) {
-    const isChanged =
-      !credentials ||
-      credentials.port !== found.port ||
-      credentials.password !== found.password
-
-    if (isChanged) {
-      console.log(`${TAG} 🔄 自动发现新凭据 (port=${found.port})`)
-      credentials = found
-      connectionVerified = false
-      lastPhase = null
-      lastSelectedChampionId = null
-    }
-    return true
+    return tryApplyCredentials(found)
   }
 
   // 找不到凭据
   if (credentials) {
     console.log(`${TAG} ⚠️ 客户端已断开`)
     credentials = null
+    credentialsFromProcess = false
     connectionVerified = false
     lastPhase = null
     lastSelectedChampionId = null
@@ -478,6 +519,8 @@ export function stopLcuMonitor(): void {
   }
   credentials = null
   connectionVerified = false
+  credentialsFromProcess = false
+  lastProcessScanTime = 0
   lastPhase = null
   lastSelectedChampionId = null
   championMap = null

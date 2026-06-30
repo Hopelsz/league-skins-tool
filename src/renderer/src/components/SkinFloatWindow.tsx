@@ -76,8 +76,8 @@ export default function SkinFloatWindow(): JSX.Element {
       }
       await window.api.setSkin(skin)
       setCurrentSkinId(skinKey)
-      // 选完皮肤自动关闭悬浮窗
-      window.api.hideFloatWindow()
+      // 短暂延迟让用户看到"已应用"标识后再关闭悬浮窗
+      setTimeout(() => window.api.hideFloatWindow(), 2000)
     } finally {
       setIsApplying(false)
       setApplyingId(null)
@@ -97,8 +97,8 @@ export default function SkinFloatWindow(): JSX.Element {
       }
       await window.api.setSkin(chroma)
       setCurrentSkinId(chromaId)
-      // 选完炫彩自动关闭悬浮窗
-      window.api.hideFloatWindow()
+      // 短暂延迟让用户看到"已应用"标识后再关闭悬浮窗
+      setTimeout(() => window.api.hideFloatWindow(), 2000)
     } finally {
       setIsApplying(false)
       setApplyingId(null)
