@@ -450,7 +450,7 @@ export default function ChampionSelector({
         {/* Champion Cards */}
         {filteredChampions.map((c) => (
           <button className="champion" key={c.id} onClick={() => setChampion(c)}>
-            <ImageLoader src={c.image} altSrc={c.imageAlt} alt={`${c.name} image`} />
+            <ImageLoader src={c.image} altSrc={c.imageAlt} altSrc2={c.imageAlt2} alt={`${c.name} image`} />
             <div className="champion-name">{c.name}</div>
           </button>
         ))}

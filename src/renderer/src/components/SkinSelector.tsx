@@ -262,7 +262,8 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
               <ImageLoader
                 key={`${skin.id}-${refreshTrigger}`}
                 src={skin.image}
-                altSrc={`https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champion.key}_${skin.id}.jpg`}
+                altSrc={skin.imageAlt}
+                altSrc2={skin.imageAlt2}
                 alt={skin.name}
               />
               {isSkinOrChromaApplied(skin) && (

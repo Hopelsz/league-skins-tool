@@ -9,6 +9,7 @@ export interface Champion {
   roles: string[]
   image: string
   imageAlt: string
+  imageAlt2: string
 }
 
 export interface Skin {
@@ -17,6 +18,8 @@ export interface Skin {
   championName?: string
   name: string
   image: string
+  imageAlt: string
+  imageAlt2: string
   chromas?: Chroma[]
 }
 

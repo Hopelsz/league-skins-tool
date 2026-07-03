@@ -156,7 +156,8 @@ export default function SkinFloatWindow(): JSX.Element {
                   <div className="float-skin-image-wrapper">
                     <ImageLoader
                       src={skin.image}
-                      altSrc={champion ? `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champion.key}_${skin.id}.jpg` : undefined}
+                      altSrc={skin.imageAlt}
+                      altSrc2={skin.imageAlt2}
                       alt={skin.name}
                     />
                     {isApplyingThis && (

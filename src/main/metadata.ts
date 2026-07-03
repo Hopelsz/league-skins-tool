@@ -18,7 +18,8 @@ export type Champion = {
   roles: string[]
   aliases: string[]
   image: string
-  imageAlt: string // 备用原画URL（腾讯CDN对新英雄可能404，此时用ddragon兜底）
+  imageAlt: string // 备用原画URL（ddragon兜底）
+  imageAlt2: string // 第三备用（CommunityDragon兜底）
 }
 
 export type Chroma = {
@@ -35,6 +36,8 @@ export type Skin = {
   championName: string
   name: string
   image: string
+  imageAlt: string // 备用URL（ddragon兜底）
+  imageAlt2: string // 第三备用（CommunityDragon兜底）
   chromas: Chroma[]
 }
 
@@ -119,7 +122,7 @@ export async function listChampions(): Promise<Champion[]> {
     const info = getChampionInfo(championKey)
     const defaultSkinId = championId * 1000 // 默认皮肤ID
 
-    // 腾讯CDN国内快（老英雄都有，部分新英雄可能404），ddragon兜底
+    // 腾讯CDN国内快（老英雄都有，部分新英雄可能404），ddragon + CommunityDragon兜底
     championsMap.set(championId, {
       id: championId,
       name: info?.title || skin.name,
@@ -129,7 +132,8 @@ export async function listChampions(): Promise<Champion[]> {
       roles: info?.roles ?? [],
       aliases: info?.aliases ?? [],
       image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${defaultSkinId}.jpg`,
-      imageAlt: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
+      imageAlt: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`,
+      imageAlt2: `https://raw.communitydragon.org/latest/game/assets/characters/${championKey.toLowerCase()}/skins/base/splash.png`
     })
   }
 
@@ -154,13 +158,15 @@ export async function listSkins(): Promise<Skin[]> {
     const champion = championsById.get(championId)
     if (!champion) continue
 
-    // 腾讯CDN国内快，部分新英雄皮肤可能404（此时前端ImageLoader用altSrc兜底）
+    // 腾讯CDN国内快，部分新英雄皮肤可能404（此时前端ImageLoader并发尝试兜底URL）
     skins.push({
       id: skinId,
       championId,
       championName: champion.name,
       name: rawSkin.name,
       image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${rawSkin.id}.jpg`,
+      imageAlt: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champion.key}_${skinId}.jpg`,
+      imageAlt2: `https://raw.communitydragon.org/latest/game/assets/characters/${champion.key.toLowerCase()}/skins/skin${skinId}/splash.png`,
       chromas: (rawSkin.chromas ?? []).map((chroma) => ({
         id: getChampSkinIdFromSkinId(chroma.id).skinId,
         championId,
