@@ -36,8 +36,6 @@ function createTray(): void {
         if (mainWindow) {
           mainWindow.show()
           mainWindow.focus()
-          // 如果浮动窗口之前是打开的，也一并显示
-          if (floatWindow) floatWindow.show()
         } else {
           createWindow()
         }
@@ -60,7 +58,6 @@ function createTray(): void {
     if (mainWindow) {
       mainWindow.show()
       mainWindow.focus()
-      if (floatWindow) floatWindow.show()
     } else {
       createWindow()
     }
