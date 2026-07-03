@@ -75,15 +75,18 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
   const [allSkins, setAllSkins] = useState<Skin[]>([])
   const [currentSkinId, setCurrentSkinId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const { setAlert } = useAlert()
 
   // Fetch skins when component mounts or refresh is triggered
   useEffect(() => {
     ;(async (): Promise<void> => {
+      setIsLoadingData(true)
       const skins = await window.api.refreshLolSkins()
       setAllSkins(skins)
       const skinId = await window.api.getCurrentSkinId()
       setCurrentSkinId(skinId)
+      setIsLoadingData(false)
     })()
   }, [refreshTrigger])
 
@@ -143,7 +146,23 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
           <h2 style={{ margin: 0, textAlign: 'center' }}>{champion.name}</h2>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <h2>没有找到该英雄的皮肤</h2>
+          {isLoadingData ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  border: '3px solid #c8a97e',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}
+              />
+              <span style={{ color: '#c8a97e', fontSize: '1.1rem' }}>加载中...</span>
+            </div>
+          ) : (
+            <h2>没有找到该英雄的皮肤</h2>
+          )}
         </div>
       </div>
     )

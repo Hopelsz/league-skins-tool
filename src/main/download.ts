@@ -33,6 +33,18 @@ const downloadMutex = new Mutex()
 const metadataMutex = new Mutex()
 let downloadCancelled = false
 
+// 缓存 getExistingSkins 结果，避免每次切换英雄都扫描磁盘
+let cachedExistingSkins: Skin[] | null = null
+let cachedExistingSkinsLocation: string | null = null
+
+/**
+ * 清除 getExistingSkins 缓存，在重新下载元数据或更换 skins 路径后调用。
+ */
+export function invalidateExistingSkinsCache(): void {
+  cachedExistingSkins = null
+  cachedExistingSkinsLocation = null
+}
+
 /**
  * 取消正在进行的下载
  */
@@ -374,8 +386,16 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
  */
 export async function getExistingSkins(): Promise<Skin[]> {
   const skinsLocation = await getSkinsLocation()
+
+  // 如果路径和缓存都有效，直接返回缓存结果
+  if (cachedExistingSkins && cachedExistingSkinsLocation === skinsLocation) {
+    return cachedExistingSkins
+  }
+
   if (!(await locationExists(skinsLocation))) {
     console.warn(`Skins location does not exist: ${skinsLocation}`)
+    cachedExistingSkins = []
+    cachedExistingSkinsLocation = skinsLocation
     return []
   }
   const skins = await listSkins()
@@ -419,5 +439,7 @@ export async function getExistingSkins(): Promise<Skin[]> {
     }
   }
 
+  cachedExistingSkins = existingSkins
+  cachedExistingSkinsLocation = skinsLocation
   return existingSkins
 }

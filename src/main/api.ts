@@ -8,7 +8,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 
 import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled } from './config'
-import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins } from './download'
+import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions, invalidateMetadataCache } from './metadata'
 
@@ -23,6 +23,7 @@ ipcMain.handle('cancelDownloadLolSkins', () => cancelDownloadLolSkins())
 ipcMain.handle('useLocalLolSkins', async (_, localPath: string) => {
   await useLocalLolSkins(localPath)
   invalidateMetadataCache()
+  invalidateExistingSkinsCache()
 })
 ipcMain.handle('checkLolSkinsExist', checkLolSkinsExist)
 ipcMain.handle('listSkins', listSkins)
@@ -53,8 +54,9 @@ ipcMain.handle('refreshLolSkins', async () => {
   // Force re-download metadata to get latest chroma names
   // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入
   await downloadLolSkinsMetadata(true)
-  // 清除元数据缓存，下次 listSkins 会重新解析
+  // 清除元数据缓存和皮肤文件缓存，下次调用会重新扫描
   invalidateMetadataCache()
+  invalidateExistingSkinsCache()
   const skins = await getExistingSkins()
   return skins
 })
