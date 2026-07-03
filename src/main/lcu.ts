@@ -421,9 +421,16 @@ async function pollGameflow(): Promise<void> {
     console.log(`${TAG} 📍 游戏阶段: ${lastPhase ?? '(初始)'} → ${phase}`)
   }
 
-  // 离开英雄选择阶段 → 隐藏悬浮窗
-  if (lastPhase === 'ChampSelect' && phase !== 'ChampSelect') {
-    console.log(`${TAG} 🔚 英雄选择结束，隐藏悬浮窗`)
+  // 进入游戏（InProgress）→ 隐藏悬浮窗，让用户在选人阶段可以反复更改皮肤
+  if (phase === 'InProgress' && lastPhase !== 'InProgress') {
+    console.log(`${TAG} 🎮 进入游戏，隐藏悬浮窗`)
+    lastSelectedChampionId = null
+    broadcastToAllWindows('lcu-champ-select-ended')
+  }
+
+  // 从选人阶段退回到大厅（秒退等）→ 也关闭悬浮窗
+  if (lastPhase === 'ChampSelect' && phase === 'Lobby') {
+    console.log(`${TAG} 🔙 选人取消，隐藏悬浮窗`)
     lastSelectedChampionId = null
     broadcastToAllWindows('lcu-champ-select-ended')
   }
