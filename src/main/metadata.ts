@@ -6,7 +6,7 @@
  */
 
 import fs from 'fs/promises'
-import { LOL_SKINS_METADATA_LOCATION } from './constants'
+import { LOL_SKINS_METADATA_LOCATION, LOL_SKINS_METADATA_FALLBACK } from './constants'
 import { getChampionInfo } from './championData'
 
 export type Champion = {
@@ -81,14 +81,26 @@ function getChampionKeyFromSplashArt(splashPath: string): string | null {
 async function loadSkinData(): Promise<SkinRaw[]> {
   if (cachedRawData) return cachedRawData
 
-  try {
-    await fs.access(LOL_SKINS_METADATA_LOCATION)
-    const content = await fs.readFile(LOL_SKINS_METADATA_LOCATION, 'utf-8')
-    cachedRawData = Object.values(JSON.parse(content)) as SkinRaw[]
-    return cachedRawData
-  } catch {
-    return []
+  const tryLoad = async (filePath: string): Promise<SkinRaw[] | null> => {
+    try {
+      await fs.access(filePath)
+      const content = await fs.readFile(filePath, 'utf-8')
+      cachedRawData = Object.values(JSON.parse(content)) as SkinRaw[]
+      return cachedRawData
+    } catch {
+      return null
+    }
   }
+
+  // 优先读取用户数据目录中的元数据（可能是网络下载的最新版本）
+  const result = await tryLoad(LOL_SKINS_METADATA_LOCATION)
+  if (result) return result
+
+  // 回退到内置的兜底元数据文件
+  const fallback = await tryLoad(LOL_SKINS_METADATA_FALLBACK)
+  if (fallback) return fallback
+
+  return []
 }
 
 /**

@@ -17,7 +17,8 @@ import {
   LOL_SKINS_LOCATION,
   LOL_SKINS_DESTINATION,
   LOL_SKINS_METADATA_URL,
-  LOL_SKINS_METADATA_LOCATION
+  LOL_SKINS_METADATA_LOCATION,
+  LOL_SKINS_METADATA_FALLBACK
 } from './constants'
 import { getConfigValue, setConfigValue } from './config'
 
@@ -82,7 +83,7 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
       return
     }
 
-    if (retryCount > 3) {
+    if (retryCount > 2) {
       reject(new Error(`Failed to download after ${retryCount} retries: ${url}`))
       return
     }
@@ -98,7 +99,7 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': '*/*'
       },
-      timeout: 60000
+      timeout: 15000
     }
 
     const req = https.request(options, (res) => {
@@ -136,7 +137,7 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
 
     req.on('error', (err) => {
       const delay = Math.pow(2, retryCount) * 1000
-      if (retryCount < 3) {
+      if (retryCount < 2) {
         setTimeout(() => {
           resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
         }, delay)
@@ -147,7 +148,7 @@ async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retr
 
     req.on('timeout', () => {
       const delay = Math.pow(2, retryCount) * 1000
-      if (retryCount < 3) {
+      if (retryCount < 2) {
         setTimeout(() => {
           resolve(downloadUrlWithRetry(url, redirectCount, retryCount + 1))
         }, delay)
@@ -241,8 +242,25 @@ export async function downloadLolSkinsMetadata(force: boolean = false): Promise<
   return metadataMutex.runExclusive(async () => {
     if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return
 
-    const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
-    await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
+    try {
+      const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
+      await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
+    } catch (networkErr) {
+      console.warn('元数据网络下载失败，尝试使用内置兜底数据:', networkErr)
+      // 回退到内置的元数据文件
+      try {
+        const fallbackExists = await locationExists(LOL_SKINS_METADATA_FALLBACK)
+        if (fallbackExists) {
+          await fs.copyFile(LOL_SKINS_METADATA_FALLBACK, LOL_SKINS_METADATA_LOCATION)
+          console.log('已从内置资源复制元数据')
+        } else {
+          // 兜底文件也不存在，抛出原错误
+          throw networkErr
+        }
+      } catch (fallbackErr) {
+        throw networkErr instanceof Error ? networkErr : new Error(String(networkErr))
+      }
+    }
   })
 }
 

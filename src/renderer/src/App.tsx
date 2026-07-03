@@ -116,7 +116,8 @@ export default function App(): JSX.Element {
     try {
       await window.api.refreshLolSkins()
     } catch {
-      // 下载失败不阻塞，用户可以在主界面手动刷新
+      // 下载失败时使用内置兜底数据，仍可进入主界面
+      setAlert('元数据加载失败，将使用内置数据。部分新皮肤可能不显示，您可稍后手动刷新。')
     }
     setLoadingMetadata(false)
     setRefreshTrigger((prev) => prev + 1)
