@@ -8,6 +8,7 @@ export interface Champion {
   nicknames: string[]
   roles: string[]
   image: string
+  imageAlt: string
 }
 
 export interface Skin {

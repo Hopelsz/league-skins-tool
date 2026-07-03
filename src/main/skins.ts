@@ -134,16 +134,36 @@ async function findChromaFileById(championName: string, chromaId: number): Promi
   const championDir = await resolveChampionDir(championName)
   if (!championDir) return null
 
-  // Check top-level: {chromaId}.fantome or {chromaId}.zip
+  // 1. 顶层查找: {chromaId}.fantome 或 {chromaId}.zip（已整理过的结构）
   const fantomePath = path.join(championDir, `${chromaId}.fantome`)
   const zipPath = path.join(championDir, `${chromaId}.zip`)
   if (await fs.pathExists(fantomePath)) return fantomePath
   if (await fs.pathExists(zipPath)) return zipPath
 
-  // Also search subdirectories for legacy chroma structures
+  // 2. chromas 子目录查找（原始未整理的结构）
+  const chromasDir = path.join(championDir, 'chromas')
+  if (await fs.pathExists(chromasDir)) {
+    const chromaSubDirs = await fs.readdir(chromasDir, { withFileTypes: true })
+    for (const subDir of chromaSubDirs) {
+      if (!subDir.isDirectory()) continue
+      const subDirPath = path.join(chromasDir, subDir.name)
+      const files = await fs.readdir(subDirPath, { withFileTypes: true })
+      for (const file of files) {
+        if (!file.isFile()) continue
+        // 从文件名中提取 ID 并比较，如 "29.zip" → id=29
+        const match = file.name.match(/^(\d+)\.(zip|fantome)$/i)
+        if (match && parseInt(match[1], 10) === chromaId) {
+          return path.join(subDirPath, file.name)
+        }
+      }
+    }
+  }
+
+  // 3. 搜索其他子目录（兼容旧结构）
   const entries = await fs.readdir(championDir, { withFileTypes: true })
   for (const entry of entries) {
     if (!entry.isDirectory()) continue
+    if (entry.name === 'chromas') continue // 已在上面处理过
     const subFantome = path.join(championDir, entry.name, `${chromaId}.fantome`)
     const subZip = path.join(championDir, entry.name, `${chromaId}.zip`)
     if (await fs.pathExists(subFantome)) return subFantome
@@ -171,15 +191,23 @@ async function findSkinFile(championName: string, skinName: string, isChromaSear
   if (!championDir) return null
 
   if (isChromaSearch) {
-    // Chroma: search subdirectories first (chroma files are always inside
-    // a parent skin subdirectory), then fall back to top-level.
+    // Chroma: 搜索 chromas 子目录（原始未整理结构）
+    const chromasDir = path.join(championDir, 'chromas')
+    if (await fs.pathExists(chromasDir)) {
+      const subDirs = await fs.readdir(chromasDir, { withFileTypes: true })
+      for (const subDir of subDirs) {
+        if (!subDir.isDirectory()) continue
+        const match = await findFileInDir(path.join(chromasDir, subDir.name), skinName)
+        if (match) return match
+      }
+    }
+
+    // 搜索其他子目录（已整理的 chroma 或旧结构）
     const subdirs = await fs.readdir(championDir, { withFileTypes: true })
     for (const subdir of subdirs) {
       if (!subdir.isDirectory()) continue
+      if (subdir.name === 'chromas') continue // 已在上面处理
 
-      // Match subdirectory name against the chroma name (not the parent skin name).
-      // Chroma names typically include the parent skin name as a prefix,
-      // e.g. chroma "福牛守护者 安妮 贺岁" → subdir "福牛守护者 安妮".
       const subdirNormalized = normalizeName(subdir.name)
       const skinNormalized = normalizeName(skinName)
       if (!subdirNormalized.includes(skinNormalized) && !skinNormalized.includes(subdirNormalized)) {
@@ -190,11 +218,11 @@ async function findSkinFile(championName: string, skinName: string, isChromaSear
       if (subMatch) return subMatch
     }
 
-    // Fallback: search top-level (in case chroma is stored at top level)
+    // 回退：搜索顶层
     const topMatch = await findFileInDir(championDir, skinName)
     if (topMatch) return topMatch
   } else {
-    // Regular skin: search top-level files only
+    // 普通皮肤：只搜索顶层文件
     const topMatch = await findFileInDir(championDir, skinName)
     if (topMatch) return topMatch
   }

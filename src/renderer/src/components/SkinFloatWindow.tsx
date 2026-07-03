@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { Champion, Skin, Chroma } from '../types'
+import ImageLoader from '@renderer/components/ImageLoader'
 
 export default function SkinFloatWindow(): JSX.Element {
   const [champion, setChampion] = useState<Champion | null>(null)
@@ -153,9 +154,11 @@ export default function SkinFloatWindow(): JSX.Element {
                   tabIndex={0}
                 >
                   <div className="float-skin-image-wrapper">
-                    <div className="img">
-                      <img src={skin.image} alt={skin.name} loading="lazy" />
-                    </div>
+                    <ImageLoader
+                      src={skin.image}
+                      altSrc={champion ? `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champion.key}_${skin.id}.jpg` : undefined}
+                      alt={skin.name}
+                    />
                     {isApplyingThis && (
                       <div className="float-skin-applying-overlay">
                         <div className="float-window-spinner" />

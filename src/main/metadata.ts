@@ -18,6 +18,7 @@ export type Champion = {
   roles: string[]
   aliases: string[]
   image: string
+  imageAlt: string // 备用原画URL（腾讯CDN对新英雄可能404，此时用ddragon兜底）
 }
 
 export type Chroma = {
@@ -116,7 +117,9 @@ export async function listChampions(): Promise<Champion[]> {
 
     const championKey = getChampionKeyFromSplashArt(skin.splashPath) ?? ''
     const info = getChampionInfo(championKey)
+    const defaultSkinId = championId * 1000 // 默认皮肤ID
 
+    // 腾讯CDN国内快（老英雄都有，部分新英雄可能404），ddragon兜底
     championsMap.set(championId, {
       id: championId,
       name: info?.title || skin.name,
@@ -125,8 +128,8 @@ export async function listChampions(): Promise<Champion[]> {
       nicknames: info?.nicknames ?? [],
       roles: info?.roles ?? [],
       aliases: info?.aliases ?? [],
-      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${championId}000.jpg` // 腾讯CDN，国内可用
-      // image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
+      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${defaultSkinId}.jpg`,
+      imageAlt: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
     })
   }
 
@@ -151,18 +154,18 @@ export async function listSkins(): Promise<Skin[]> {
     const champion = championsById.get(championId)
     if (!champion) continue
 
+    // 腾讯CDN国内快，部分新英雄皮肤可能404（此时前端ImageLoader用altSrc兜底）
     skins.push({
       id: skinId,
       championId,
       championName: champion.name,
       name: rawSkin.name,
-      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${rawSkin.id}.jpg`, // 腾讯CDN，国内可用
-      // image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${getChampionKeyFromSplashArt(rawSkin.splashPath)}_${skinId}.jpg`,
+      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${rawSkin.id}.jpg`,
       chromas: (rawSkin.chromas ?? []).map((chroma) => ({
         id: getChampSkinIdFromSkinId(chroma.id).skinId,
         championId,
         championName: champion.name,
-        name: chroma.name || rawSkin.name,  // 使用 chroma 自己的名称来精确匹配文件
+        name: chroma.name || rawSkin.name,
         colors: chroma.colors
       }))
     })

@@ -361,16 +361,11 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
  * @returns {Promise<void>} when the operation is finished.
  */
 export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
-  return downloadMutex.runExclusive(async () => {
-    // 保存用户选择的皮肤路径到配置
-    await setConfigValue('skinsPath', localSkinsPath)
-    
-    // 下载/更新元数据
-    await downloadLolSkinsMetadata(true)
-    
-    // 组织皮肤结构
-    await organizeLolSkinsStructure()
-  })
+  // 保存用户选择的皮肤路径到配置
+  await setConfigValue('skinsPath', localSkinsPath)
+  
+  // 如果有本地元数据缓存就用，没有才下载；不强制重新下载避免网络卡住
+  await downloadLolSkinsMetadata(false)
 }
 
 /**

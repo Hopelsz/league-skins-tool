@@ -240,7 +240,12 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
             }}
           >
             <div style={{ position: 'relative' }}>
-              <ImageLoader key={`${skin.id}-${refreshTrigger}`} src={skin.image} alt={skin.name} />
+              <ImageLoader
+                key={`${skin.id}-${refreshTrigger}`}
+                src={skin.image}
+                altSrc={`https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champion.key}_${skin.id}.jpg`}
+                alt={skin.name}
+              />
               {isSkinOrChromaApplied(skin) && (
                 <div
                   style={{
