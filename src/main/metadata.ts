@@ -125,7 +125,8 @@ export async function listChampions(): Promise<Champion[]> {
       nicknames: info?.nicknames ?? [],
       roles: info?.roles ?? [],
       aliases: info?.aliases ?? [],
-      image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
+      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${championId}000.jpg` // 腾讯CDN，国内可用
+      // image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${championKey}_0.jpg`
     })
   }
 
@@ -155,7 +156,8 @@ export async function listSkins(): Promise<Skin[]> {
       championId,
       championName: champion.name,
       name: rawSkin.name,
-      image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${getChampionKeyFromSplashArt(rawSkin.splashPath)}_${skinId}.jpg`,
+      image: `https://game.gtimg.cn/images/lol/act/img/skinloading/${rawSkin.id}.jpg`, // 腾讯CDN，国内可用
+      // image: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${getChampionKeyFromSplashArt(rawSkin.splashPath)}_${skinId}.jpg`,
       chromas: (rawSkin.chromas ?? []).map((chroma) => ({
         id: getChampSkinIdFromSkinId(chroma.id).skinId,
         championId,
