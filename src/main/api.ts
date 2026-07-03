@@ -7,7 +7,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron'
 
-import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled } from './config'
+import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled } from './config'
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions, invalidateMetadataCache } from './metadata'
@@ -50,6 +50,8 @@ ipcMain.handle('getCloseBehavior', getCloseBehavior)
 ipcMain.handle('setCloseBehavior', (_, behavior) => setCloseBehavior(behavior))
 ipcMain.handle('getFloatWindowEnabled', getFloatWindowEnabled)
 ipcMain.handle('setFloatWindowEnabled', (_, enabled: boolean) => setFloatWindowEnabled(enabled))
+ipcMain.handle('getMultiChampionSkinEnabled', getMultiChampionSkinEnabled)
+ipcMain.handle('setMultiChampionSkinEnabled', (_, enabled: boolean) => setMultiChampionSkinEnabled(enabled))
 ipcMain.handle('refreshLolSkins', async () => {
   // Force re-download metadata to get latest chroma names
   // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入

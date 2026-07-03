@@ -22,7 +22,18 @@ export default function SkinFloatWindow(): JSX.Element {
         setAllSkins(skins)
         // 获取该英雄当前记住的皮肤
         const rememberedSkinId = await window.api.getChampionSkinId(champ.id)
-        setCurrentSkinId(rememberedSkinId)
+        if (rememberedSkinId) {
+          setCurrentSkinId(rememberedSkinId)
+        } else {
+          // 单英雄模式：没有 per-champion 映射时，检查全局 currentSkinId
+          const multiEnabled = await window.api.getMultiChampionSkinEnabled()
+          if (!multiEnabled) {
+            const globalSkinId = await window.api.getCurrentSkinId()
+            setCurrentSkinId(globalSkinId)
+          } else {
+            setCurrentSkinId(null)
+          }
+        }
       } catch {
         setAllSkins([])
       } finally {

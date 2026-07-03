@@ -63,6 +63,8 @@ export interface Api {
   setCloseBehavior: (behavior: CloseBehavior) => Promise<void>
   getFloatWindowEnabled: () => Promise<boolean>
   setFloatWindowEnabled: (enabled: boolean) => Promise<void>
+  getMultiChampionSkinEnabled: () => Promise<boolean>
+  setMultiChampionSkinEnabled: (enabled: boolean) => Promise<void>
   // 浮动窗口
   showFloatWindow: (champion: Champion) => void
   hideFloatWindow: () => void

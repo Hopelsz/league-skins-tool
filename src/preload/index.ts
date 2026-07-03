@@ -30,6 +30,8 @@ const api = {
   setCloseBehavior: (behavior: string): Promise<void> => ipcRenderer.invoke('setCloseBehavior', behavior),
   getFloatWindowEnabled: (): Promise<boolean> => ipcRenderer.invoke('getFloatWindowEnabled'),
   setFloatWindowEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setFloatWindowEnabled', enabled),
+  getMultiChampionSkinEnabled: (): Promise<boolean> => ipcRenderer.invoke('getMultiChampionSkinEnabled'),
+  setMultiChampionSkinEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setMultiChampionSkinEnabled', enabled),
   refreshLolSkins: (): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins'),
   // Window controls
   minimizeWindow: (): void => ipcRenderer.send('window-minimize'),

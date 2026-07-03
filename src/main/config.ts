@@ -271,6 +271,16 @@ export async function setFloatWindowEnabled(enabled: boolean): Promise<void> {
   await setConfigValue('floatWindowEnabled', String(enabled))
 }
 
+export async function getMultiChampionSkinEnabled(): Promise<boolean> {
+  const val = await getConfigValue('multiChampionSkinEnabled')
+  // 默认开启（保持向后兼容）
+  return val !== 'false'
+}
+
+export async function setMultiChampionSkinEnabled(enabled: boolean): Promise<void> {
+  await setConfigValue('multiChampionSkinEnabled', String(enabled))
+}
+
 /**
  * This function asks the user to select the local skins folder.
  * @returns {Promise<string | null>} the selected path or null if canceled.

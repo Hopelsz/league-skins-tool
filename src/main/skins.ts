@@ -19,7 +19,7 @@ import {
 } from './constants'
 import type { Skin, Chroma } from './metadata'
 import { listChampions, listSkins as listAllSkins } from './metadata'
-import { getLeaguePath, setCurrentSkinId, setChampionSkinId, removeChampionSkinId, getChampionSkins, clearAllChampionSkins } from './config'
+import { getLeaguePath, setCurrentSkinId, getCurrentSkinId, setChampionSkinId, removeChampionSkinId, getChampionSkins, clearAllChampionSkins, getMultiChampionSkinEnabled } from './config'
 import { getSkinsLocation } from './download'
 
 let runningProcess: ChildProcess | null = null
@@ -271,42 +271,66 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     runningProcess = null
   }
 
-  // Ensure temp directories exist (do NOT wipe — keep other champions' mods)
-  await fs.ensureDir(TEMP_DIR)
-  await fs.ensureDir(skinsDirDestination)
+  // 检查多英雄皮肤开关
+  const multiEnabled = await getMultiChampionSkinEnabled()
 
-  // Each champion gets its own mod subdirectory: skins/champion_{id}
-  const modName = `champion_${skin.championId}`
-  const modDir = path.join(skinsDirDestination, modName)
+  if (multiEnabled) {
+    // 多英雄模式：每个英雄独立 mod 目录，mkoverlay 打包所有 mod
+    await fs.ensureDir(TEMP_DIR)
+    await fs.ensureDir(skinsDirDestination)
 
-  // Remove old mod for this champion, then re-import
-  await fs.remove(modDir)
-  await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${modDir}" --game:"${gamePath}"`,
-  )
+    // Each champion gets its own mod subdirectory: skins/champion_{id}
+    const modName = `champion_${skin.championId}`
+    const modDir = path.join(skinsDirDestination, modName)
 
-  // Collect all existing mod directories
-  const entries = await fs.readdir(skinsDirDestination, { withFileTypes: true })
-  const modNames = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+    // Remove old mod for this champion, then re-import
+    await fs.remove(modDir)
+    await promisifiedExec(
+      `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${modDir}" --game:"${gamePath}"`,
+    )
 
-  if (modNames.length === 0) {
-    throw new Error('No mods available after import')
+    // Collect all existing mod directories
+    const entries = await fs.readdir(skinsDirDestination, { withFileTypes: true })
+    const modNames = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+
+    if (modNames.length === 0) {
+      throw new Error('No mods available after import')
+    }
+
+    const modsArg = modNames.join('/')
+    await promisifiedExec(
+      `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
+    )
+
+    runningProcess = spawn(
+      CSLOL_MANAGER_EXECUTABLE,
+      ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
+    )
+
+    const skinId = `${skin.championId}-${skin.id}`
+    await setCurrentSkinId(skinId)
+    // 记住该英雄的皮肤选择
+    await setChampionSkinId(skin.championId, skinId)
+  } else {
+    // 单英雄模式（旧逻辑）：每次清空 TEMP_DIR，只导入一个 mod
+    await fs.remove(TEMP_DIR)
+    await fs.ensureDir(TEMP_DIR)
+
+    await promisifiedExec(
+      `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${path.join(skinsDirDestination, 'skin')}" --game:"${gamePath}"`,
+    )
+
+    await promisifiedExec(
+      `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"skin"`,
+    )
+
+    runningProcess = spawn(
+      CSLOL_MANAGER_EXECUTABLE,
+      ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
+    )
+
+    await setCurrentSkinId(`${skin.championId}-${skin.id}`)
   }
-
-  const modsArg = modNames.join('/')
-  await promisifiedExec(
-    `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
-  )
-
-  runningProcess = spawn(
-    CSLOL_MANAGER_EXECUTABLE,
-    ['runoverlay', overlayDirDestination, CSLOL_MANAGER_CONFIG, `--game:${gamePath}`]
-  )
-
-  const skinId = `${skin.championId}-${skin.id}`
-  await setCurrentSkinId(skinId)
-  // 记住该英雄的皮肤选择
-  await setChampionSkinId(skin.championId, skinId)
 }
 
 /**
@@ -322,7 +346,11 @@ export async function disableSkin(championId?: number): Promise<void> {
     runningProcess = null
   }
   await setCurrentSkinId('')
-  if (championId !== undefined) {
+
+  // 检查多英雄皮肤开关
+  const multiEnabled = await getMultiChampionSkinEnabled()
+
+  if (multiEnabled && championId !== undefined) {
     await removeChampionSkinId(championId)
 
     // Remove this champion's mod directory
@@ -358,6 +386,8 @@ export interface ChampionSkinEntry {
 
 /**
  * 获取所有已记住的英雄皮肤详情，供前端展示。
+ * 多英雄模式：返回所有 championSkins 映射中的皮肤。
+ * 单英雄模式：返回当前应用的皮肤（最多一条）。
  */
 export async function getChampionSkinsDetail(): Promise<ChampionSkinEntry[]> {
   const championSkins = await getChampionSkins()
@@ -388,6 +418,45 @@ export async function getChampionSkinsDetail(): Promise<ChampionSkinEntry[]> {
         // Show the parent skin's name (without chroma suffix) for chroma selections
         skinName: chromaMatch?.name ?? skinId
       })
+    }
+  }
+
+  // 单英雄模式：championSkins 为空时，用全局 currentSkinId 作为回退
+  if (entries.length === 0) {
+    const multiEnabled = await getMultiChampionSkinEnabled()
+    if (!multiEnabled) {
+      const currentSkinId = await getCurrentSkinId()
+      if (currentSkinId) {
+        const match = currentSkinId.match(/^(\d+)-(\d+)$/)
+        if (match) {
+          const championId = parseInt(match[1], 10)
+          const skinIdNum = parseInt(match[2], 10)
+          const matched = allSkins.find((s) => s.championId === championId && s.id === skinIdNum)
+          if (matched) {
+            entries.push({
+              championId,
+              championName: matched.championName ?? `ID:${championId}`,
+              skinId: currentSkinId,
+              skinName: matched.name
+            })
+          } else {
+            // Try chroma
+            const championSkinsList = allSkins.filter((s) => s.championId === championId)
+            const chromaMatch = championSkinsList.find((s) =>
+              s.chromas?.some((c) => c.id === skinIdNum)
+            )
+            if (chromaMatch) {
+              const chroma = chromaMatch.chromas?.find((c) => c.id === skinIdNum)
+              entries.push({
+                championId,
+                championName: chromaMatch.championName ?? `ID:${championId}`,
+                skinId: currentSkinId,
+                skinName: chroma?.name ?? currentSkinId
+              })
+            }
+          }
+        }
+      }
     }
   }
 

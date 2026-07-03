@@ -24,6 +24,7 @@ export default function App(): JSX.Element {
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const [floatWindowEnabled, setFloatWindowEnabled] = useState(true)
+  const [multiChampionSkinEnabled, setMultiChampionSkinEnabled] = useState(true)
   const [closeBehaviorValue, setCloseBehaviorValue] = useState<CloseBehavior>('ask')
   const [settingsTab, setSettingsTab] = useState('game')
   const { setAlert } = useAlert()
@@ -70,6 +71,8 @@ export default function App(): JSX.Element {
     ;(async (): Promise<void> => {
       const enabled = await window.api.getFloatWindowEnabled()
       setFloatWindowEnabled(enabled)
+      const multiEnabled = await window.api.getMultiChampionSkinEnabled()
+      setMultiChampionSkinEnabled(multiEnabled)
       const behavior = await window.api.getCloseBehavior()
       setCloseBehaviorValue(behavior)
     })()
@@ -272,6 +275,30 @@ export default function App(): JSX.Element {
                         await window.api.setFloatWindowEnabled(next)
                         if (!next) {
                           window.api.hideFloatWindow()
+                        }
+                      }}
+                    >
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                  <div className="settings-toggle-item">
+                    <div className="settings-toggle-text">
+                      <span className="settings-toggle-title">多英雄皮肤</span>
+                      <span className="settings-toggle-desc">
+                        {multiChampionSkinEnabled
+                          ? '可为多个英雄分别应用不同皮肤'
+                          : '一次仅为一个英雄应用皮肤'}
+                      </span>
+                    </div>
+                    <label
+                      className={`toggle-switch ${multiChampionSkinEnabled ? 'active' : ''}`}
+                      onClick={async () => {
+                        const next = !multiChampionSkinEnabled
+                        setMultiChampionSkinEnabled(next)
+                        await window.api.setMultiChampionSkinEnabled(next)
+                        if (!next) {
+                          // 关闭多英雄时清除所有已记住的英雄皮肤映射
+                          await window.api.clearAllSkins()
                         }
                       }}
                     >
