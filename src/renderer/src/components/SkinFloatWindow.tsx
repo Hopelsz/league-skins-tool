@@ -63,7 +63,7 @@ export default function SkinFloatWindow(): JSX.Element {
   }, [])
 
   const championSkins = champion
-    ? allSkins.filter((skin) => skin.championId === champion.id)
+    ? allSkins.filter((skin) => skin.championId === champion.id && skin.id !== 0)
     : []
 
   const isSkinOrChromaApplied = (skin: Skin): boolean => {

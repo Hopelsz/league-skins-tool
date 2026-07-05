@@ -148,7 +148,9 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
   }, [champion])
 
   const championSkins =
-    champion === null ? [] : allSkins.filter((skin) => skin.championId === champion.id)
+    champion === null
+      ? []
+      : allSkins.filter((skin) => skin.championId === champion.id && skin.id !== 0)
 
   // 检查皮肤或任意炫彩是否被选中的辅助函数
   const isSkinOrChromaApplied = (skin: Skin): boolean => {
