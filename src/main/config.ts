@@ -17,33 +17,41 @@ const DEFAULT_CONFIG = {
   championSkins: {} as Record<string, string>
 }
 
-/**
- * This function checks if the config file exists.
- * @returns {Promise<boolean>} true if the config file exists, false otherwise.
- */
-async function configExists(): Promise<boolean> {
-  return fs.pathExists(CONFIG_PATH)
+/** 内存缓存：避免每次读取配置都访问磁盘 */
+let configCache: Record<string, unknown> | null = null
+
+/** 清除内存缓存，强制下次 readConfig 重新从磁盘读取 */
+function invalidateConfigCache(): void {
+  configCache = null
 }
 
 /**
  * Read the config file safely, returning parsed object or default.
+ * 使用内存缓存，避免启动时多个 IPC 调用重复读取磁盘。
  */
 async function readConfig(): Promise<Record<string, unknown>> {
+  if (configCache) return { ...configCache }
+
   try {
     const exists = await fs.pathExists(CONFIG_PATH)
     if (!exists) {
       await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+      configCache = { ...DEFAULT_CONFIG }
       return { ...DEFAULT_CONFIG }
     }
     const raw = await fs.readFile(CONFIG_PATH, 'utf-8')
     if (!raw.trim()) {
       await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+      configCache = { ...DEFAULT_CONFIG }
       return { ...DEFAULT_CONFIG }
     }
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    configCache = parsed
+    return parsed
   } catch {
     // If file is corrupted, reset to defaults
     await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
+    configCache = { ...DEFAULT_CONFIG }
     return { ...DEFAULT_CONFIG }
   }
 }
@@ -67,6 +75,8 @@ export async function getConfigValue(key: string): Promise<string> {
 export async function setConfigValue(key: string, value: string): Promise<void> {
   const config = await readConfig()
   config[key] = value
+  // 同步更新缓存
+  configCache = config
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
 
@@ -198,16 +208,8 @@ export async function setCurrentSkinId(skinId: string | null): Promise<void> {
  * 获取所有英雄的皮肤映射 { championId: skinId }
  */
 export async function getChampionSkins(): Promise<Record<string, string>> {
-  try {
-    const exists = await fs.pathExists(CONFIG_PATH)
-    if (!exists) return {}
-    const raw = await fs.readFile(CONFIG_PATH, 'utf-8')
-    if (!raw.trim()) return {}
-    const config = JSON.parse(raw)
-    return config.championSkins ?? {}
-  } catch {
-    return {}
-  }
+  const config = await readConfig()
+  return (config.championSkins as Record<string, string> | null) ?? {}
 }
 
 /**
@@ -226,6 +228,7 @@ export async function setChampionSkinId(championId: number, skinId: string): Pro
   const championSkins = (config.championSkins as Record<string, string> | null) ?? {}
   championSkins[String(championId)] = skinId
   config.championSkins = championSkins
+  configCache = config
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
 
@@ -237,6 +240,7 @@ export async function removeChampionSkinId(championId: number): Promise<void> {
   const championSkins = (config.championSkins as Record<string, string> | null) ?? {}
   delete championSkins[String(championId)]
   config.championSkins = championSkins
+  configCache = config
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
 
@@ -246,6 +250,7 @@ export async function removeChampionSkinId(championId: number): Promise<void> {
 export async function clearAllChampionSkins(): Promise<void> {
   const config = await readConfig()
   config.championSkins = {}
+  configCache = config
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
 }
 
@@ -301,6 +306,6 @@ export async function askAndSelectLocalSkins(): Promise<string | null> {
 }
 
 // Create the config file if it doesn't exist (also handled by readConfig).
-configExists().then(async (exists) => {
+fs.pathExists(CONFIG_PATH).then(async (exists) => {
   if (!exists) await fs.writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2))
 })

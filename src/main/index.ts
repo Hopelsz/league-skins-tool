@@ -113,6 +113,10 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    // 窗口显示后再延迟启动 LCU 监控，避免和启动流程竞争资源
+    setTimeout(() => {
+      startLcuMonitor()
+    }, 3000)
   })
 
   mainWindow.on('maximize', () => {
@@ -272,9 +276,6 @@ app.whenReady().then(() => {
 
   createTray()
   createWindow()
-
-  // 启动 LCU 监控（自动检测游戏中英雄选择）
-  startLcuMonitor()
 
   app.on('activate', function () {
     if (mainWindow) {

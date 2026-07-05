@@ -52,10 +52,11 @@ ipcMain.handle('getFloatWindowEnabled', getFloatWindowEnabled)
 ipcMain.handle('setFloatWindowEnabled', (_, enabled: boolean) => setFloatWindowEnabled(enabled))
 ipcMain.handle('getMultiChampionSkinEnabled', getMultiChampionSkinEnabled)
 ipcMain.handle('setMultiChampionSkinEnabled', (_, enabled: boolean) => setMultiChampionSkinEnabled(enabled))
-ipcMain.handle('refreshLolSkins', async () => {
-  // Force re-download metadata to get latest chroma names
+ipcMain.handle('refreshLolSkins', async (_, forceMetadata = false) => {
+  // 仅手动刷新（force=true）时才强制从网络下载元数据
+  // 首次加载或自动刷新时使用已有缓存，大幅提升启动速度
   // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入
-  await downloadLolSkinsMetadata(true)
+  await downloadLolSkinsMetadata(forceMetadata)
   // 清除元数据缓存和皮肤文件缓存，下次调用会重新扫描
   invalidateMetadataCache()
   invalidateExistingSkinsCache()

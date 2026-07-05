@@ -14,44 +14,37 @@ export default function ImageLoader({
 }): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  // 当前实际显示的 URL
-  const [displaySrc, setDisplaySrc] = useState<string | null>(null)
-  // 防止重复处理
+  const [currentIdx, setCurrentIdx] = useState(0)
   const resolvedRef = useRef(false)
-  // 追踪失败次数
-  const failCountRef = useRef(0)
-  const totalCountRef = useRef(0)
 
   const urls: string[] = [src]
   if (altSrc) urls.push(altSrc)
   if (altSrc2) urls.push(altSrc2)
 
-  const handleLoad = useCallback((url: string) => {
+  const handleLoad = useCallback(() => {
     if (resolvedRef.current) return
     resolvedRef.current = true
-    setDisplaySrc(url)
     setLoading(false)
     setError(false)
   }, [])
 
   const handleError = useCallback(() => {
-    failCountRef.current++
     if (resolvedRef.current) return
-    if (failCountRef.current >= totalCountRef.current) {
+    const nextIdx = currentIdx + 1
+    if (nextIdx < urls.length) {
+      // 尝试下一个 URL
+      setCurrentIdx(nextIdx)
+    } else {
+      // 所有 URL 都失败了
       setLoading(false)
       setError(true)
     }
-  }, [])
-
-  // 初始化 totalCount
-  if (totalCountRef.current === 0) {
-    totalCountRef.current = urls.length
-  }
+  }, [currentIdx, urls.length])
 
   return (
     <div
       className="img"
-      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}
     >
       {loading && !error && <Loader />}
       {error && (
@@ -59,19 +52,18 @@ export default function ImageLoader({
           <span className="img-error-text">图片加载失败</span>
         </div>
       )}
-      {/* 并发加载所有 URL，隐藏的 img 标签也会触发请求 */}
-      {urls.map((url, index) => (
+      {/* 绝对定位填充父容器，避免作为 flex 子项挤压 Loader。
+           图片全部加载失败时隐藏 img，避免浏览器默认破损图标/alt文字显示并溢出。 */}
+      {!error && (
         <img
-          key={index}
-          src={url}
+          key={currentIdx}
+          src={urls[currentIdx]}
           alt={alt}
-          onLoad={() => handleLoad(url)}
+          onLoad={handleLoad}
           onError={handleError}
-          style={{
-            display: displaySrc === url ? 'block' : 'none'
-          }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         />
-      ))}
+      )}
     </div>
   )
 }

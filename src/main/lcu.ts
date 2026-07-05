@@ -8,7 +8,7 @@
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
+import { exec, type ExecException } from 'child_process'
 import { BrowserWindow } from 'electron'
 import { getLeaguePath, getFloatWindowEnabled } from './config'
 import { CONFIG_PATH } from './constants'
@@ -119,10 +119,26 @@ function readLockfile(leaguePath: string): LcuCredentials | null {
 }
 
 /**
+ * 异步执行命令并返回 stdout 字符串
+ */
+function execCommandAsync(command: string, timeout: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    exec(command, { timeout, windowsHide: true }, (error: ExecException | null, stdout: string) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(stdout)
+      }
+    })
+  })
+}
+
+/**
  * 通过查找 LeagueClientUx.exe 进程的命令行参数获取 LCU 连接信息
  * 内置限流保护：距上次扫描不足 10 秒时跳过（除非强制刷新）
+ * 使用异步 exec 避免阻塞主进程
  */
-function getLcuFromProcess(force = false): LcuCredentials | null {
+async function getLcuFromProcess(force = false): Promise<LcuCredentials | null> {
   const now = Date.now()
   if (!force && now - lastProcessScanTime < PROCESS_SCAN_MIN_INTERVAL) {
     return null // 限流跳过
@@ -134,18 +150,17 @@ function getLcuFromProcess(force = false): LcuCredentials | null {
 
     // 优先用 PowerShell（支持 UTF-8 输出，不会产生乱码）
     try {
-      output = execSync(
+      output = await execCommandAsync(
         'powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"name=\'LeagueClientUx.exe\'\\" | Select-Object -First 1 -ExpandProperty CommandLine"',
-        { timeout: 3000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+        3000
       )
     } catch {
       // powershell 不可用，尝试 wmic
       try {
-        const buf = execSync(
+        output = await execCommandAsync(
           'wmic process where "name=\'LeagueClientUx.exe\'" get CommandLine /format:csv',
-          { timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }
+          3000
         )
-        output = buf.toString()
       } catch {
         return null
       }
@@ -176,9 +191,9 @@ function getLcuFromProcess(force = false): LcuCredentials | null {
 /**
  * 在常见位置搜索 lockfile
  */
-function findLockfile(): LcuCredentials | null {
+async function findLockfile(): Promise<LcuCredentials | null> {
   // 方法1: 从命令行参数获取（最可靠），force=true 跳过限流
-  const fromProcess = getLcuFromProcess(true)
+  const fromProcess = await getLcuFromProcess(true)
   if (fromProcess) return fromProcess
 
   // 方法2: 从配置的 leaguePath 读取
@@ -362,7 +377,7 @@ async function refreshCredentials(): Promise<boolean> {
   }
 
   // 优先级3: 自动搜索（进程扫描 + 常见路径）
-  const found = findLockfile()
+  const found = await findLockfile()
   if (found) {
     return tryApplyCredentials(found)
   }
@@ -503,16 +518,18 @@ export function startLcuMonitor(): void {
 
   console.log(`${TAG} 🚀 启动 LCU 监控`)
 
-  monitorTimer = setInterval(() => {
+  // 首次轮询延迟 2 秒，避免启动瞬间和窗口渲染抢资源
+  setTimeout(() => {
     pollGameflow().catch((err) => {
-      console.log(`${TAG} ❌ 轮询异常:`, err)
+      console.log(`${TAG} ❌ 首次轮询异常:`, err)
     })
-  }, 2000)
 
-  // 立即执行第一次轮询
-  pollGameflow().catch((err) => {
-    console.log(`${TAG} ❌ 首次轮询异常:`, err)
-  })
+    monitorTimer = setInterval(() => {
+      pollGameflow().catch((err) => {
+        console.log(`${TAG} ❌ 轮询异常:`, err)
+      })
+    }, 2000)
+  }, 2000)
 }
 
 /**

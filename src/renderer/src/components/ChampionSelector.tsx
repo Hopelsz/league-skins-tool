@@ -6,6 +6,43 @@ import SearchIcon from '@renderer/components/svgs/SearchIcon'
 import { useAlert } from '@renderer/hooks/Alert'
 import icon from '../assets/icon.png'
 
+/**
+ * 懒加载容器：使用哨兵元素触发 IntersectionObserver，
+ * 不引入额外包装层，保持原始 DOM 层级。
+ */
+function LazyLoadSlot({
+  children
+}: {
+  children: React.ReactNode
+}): JSX.Element {
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <>
+      {/* 不可见哨兵，仅用于 IntersectionObserver 观测 */}
+      <div ref={sentinelRef} style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }} />
+      {visible ? children : null}
+    </>
+  )
+}
+
 type RoleTab = {
   key: string
   label: string
@@ -450,7 +487,9 @@ export default function ChampionSelector({
         {/* Champion Cards */}
         {filteredChampions.map((c) => (
           <button className="champion" key={c.id} onClick={() => setChampion(c)}>
-            <ImageLoader src={c.image} altSrc={c.imageAlt} altSrc2={c.imageAlt2} alt={`${c.name} image`} />
+            <LazyLoadSlot>
+              <ImageLoader src={c.image} altSrc={c.imageAlt} altSrc2={c.imageAlt2} alt={`${c.name} image`} />
+            </LazyLoadSlot>
             <div className="champion-name">{c.name}</div>
           </button>
         ))}

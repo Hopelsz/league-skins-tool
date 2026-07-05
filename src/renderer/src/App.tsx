@@ -111,10 +111,10 @@ export default function App(): JSX.Element {
   const [loadingMetadata, setLoadingMetadata] = useState(false)
 
   const handlePathReady = async (): Promise<void> => {
-    // 路径设置完成后，先下载元数据再进入主界面
+    // 路径设置完成后加载皮肤数据（不强制网络下载，优先使用本地缓存）
     setLoadingMetadata(true)
     try {
-      await window.api.refreshLolSkins()
+      await window.api.refreshLolSkins(false)
     } catch {
       // 下载失败时使用内置兜底数据，仍可进入主界面
       setAlert('元数据加载失败，将使用内置数据。部分新皮肤可能不显示，您可稍后手动刷新。')
@@ -152,7 +152,7 @@ export default function App(): JSX.Element {
 
   const handleRefresh = async (): Promise<void> => {
     try {
-      await window.api.refreshLolSkins()
+      await window.api.refreshLolSkins(true)
       setRefreshTrigger((prev) => prev + 1)
       setAlert('皮肤列表刷新成功！')
     } catch (error) {
