@@ -51,7 +51,7 @@ export interface Api {
   >
   getCurrentSkinId: () => Promise<string | null>
   getChampionSkinId: (championId: number) => Promise<string | null>
-  refreshLolSkins: () => Promise<Skin[]>
+  refreshLolSkins: (forceMetadata?: boolean) => Promise<Skin[]>
   minimizeWindow: () => void
   maximizeWindow: () => void
   closeWindow: () => void

@@ -20,11 +20,6 @@ const DEFAULT_CONFIG = {
 /** 内存缓存：避免每次读取配置都访问磁盘 */
 let configCache: Record<string, unknown> | null = null
 
-/** 清除内存缓存，强制下次 readConfig 重新从磁盘读取 */
-function invalidateConfigCache(): void {
-  configCache = null
-}
-
 /**
  * Read the config file safely, returning parsed object or default.
  * 使用内存缓存，避免启动时多个 IPC 调用重复读取磁盘。

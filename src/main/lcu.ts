@@ -372,7 +372,9 @@ async function refreshCredentials(): Promise<boolean> {
 
   // 优先级2: 如果已从进程获取过凭据，先验证是否仍然有效
   if (credentials && credentialsFromProcess) {
-    // 凭据还在，直接复用，避免反复 execSync
+    // 重置验证标记，让 verifyConnection() 真正发请求检查旧凭据是否仍可用
+    // 否则客户端重启（切换账号）后 connectionVerified 仍为 true，会死抱着过期凭据不放
+    connectionVerified = false
     return true
   }
 
