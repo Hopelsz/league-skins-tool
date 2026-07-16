@@ -1,6 +1,6 @@
 # League Skins
 
-一款基于`cslol-manager`的英雄联盟 Windows 换肤工具。
+一款基于 `cslol-manager` 的英雄联盟 Windows 换肤工具。
 
 <p align="center"><b><font size="5" color="#e74c3c">⚠️ 使用前需自行导入皮肤包，本工具不提供皮肤文件！</font></b></p>
 
@@ -10,18 +10,24 @@
   <img src="docs/setting.png" width="32%">
 </div>
 
+## 功能
+
+- 支持 LOL 国服换肤
+- 游戏中自动识别英雄，弹窗快捷选肤
+- 支持多英雄同时换肤
+- 支持炫彩皮肤
 
 ## 开发
 
 ```bash
 git clone https://github.com/Hopelsz/league-skins-tool.git
-cd league-skins
-## 安装依赖
-npm install
-## 开发模式
-npm run dev
-## 自行打包
-npm run build:win
+cd league-skins-tool
+# 安装依赖（使用 pnpm）
+pnpm install
+# 开发模式
+pnpm dev
+# 自行打包
+pnpm build:win
 ```
 
 ## 免责声明
