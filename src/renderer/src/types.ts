@@ -42,6 +42,7 @@ export interface Api {
   useLocalLolSkins: (localPath: string) => Promise<void>
   checkLolSkinsExist: () => Promise<boolean>
   listSkins: () => Promise<Skin[]>
+  getExistingSkins: () => Promise<Skin[]>
   listChampions: () => Promise<Champion[]>
   setSkin: (skin: Skin | Chroma) => Promise<void>
   disableSkin: (championId?: number) => Promise<void>

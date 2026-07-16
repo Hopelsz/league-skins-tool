@@ -18,7 +18,7 @@ export default function SkinFloatWindow(): JSX.Element {
       setDataLoading(true)
       // 获取皮肤列表
       try {
-        const skins = await window.api.listSkins()
+        const skins = await window.api.getExistingSkins()
         setAllSkins(skins)
         // 获取该英雄当前记住的皮肤
         const rememberedSkinId = await window.api.getChampionSkinId(champ.id)

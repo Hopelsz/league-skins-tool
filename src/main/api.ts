@@ -27,6 +27,7 @@ ipcMain.handle('useLocalLolSkins', async (_, localPath: string) => {
 })
 ipcMain.handle('checkLolSkinsExist', checkLolSkinsExist)
 ipcMain.handle('listSkins', listSkins)
+ipcMain.handle('getExistingSkins', getExistingSkins)
 ipcMain.handle('listChampions', listChampions)
 ipcMain.handle('setSkin', async (_, skin: Skin | Chroma) => {
   await setSkin(skin)
