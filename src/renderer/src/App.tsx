@@ -27,6 +27,7 @@ export default function App(): JSX.Element {
   const [multiChampionSkinEnabled, setMultiChampionSkinEnabled] = useState(true)
   const [closeBehaviorValue, setCloseBehaviorValue] = useState<CloseBehavior>('ask')
   const [settingsTab, setSettingsTab] = useState('game')
+  const [appVersion, setAppVersion] = useState('')
   const { setAlert } = useAlert()
 
   // 检测是否为浮动窗口
@@ -53,6 +54,11 @@ export default function App(): JSX.Element {
         setShowWelcome(true)
       }
     })()
+  }, [])
+
+  // 加载应用版本号
+  useEffect(() => {
+    window.api.getAppVersion().then(setAppVersion)
   }, [])
 
   // Handle "开始使用" click: 直接进入路径设置
@@ -203,7 +209,7 @@ export default function App(): JSX.Element {
             </svg>
           </button>
         )}
-        <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: 16.13</span>
+        <span style={{ fontSize: '12px', color: '#c8aa6e', pointerEvents: 'none', userSelect: 'none' }}>ver: {appVersion || '—'}</span>
       </div>
       <WindowControls showSettings={showSettings} setShowSettings={setShowSettings} />
       {showWelcome ? (

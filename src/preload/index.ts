@@ -34,6 +34,7 @@ const api = {
   getMultiChampionSkinEnabled: (): Promise<boolean> => ipcRenderer.invoke('getMultiChampionSkinEnabled'),
   setMultiChampionSkinEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setMultiChampionSkinEnabled', enabled),
   refreshLolSkins: (forceMetadata = false): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins', forceMetadata),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('getAppVersion'),
   // Window controls
   minimizeWindow: (): void => ipcRenderer.send('window-minimize'),
   maximizeWindow: (): void => ipcRenderer.send('window-maximize'),

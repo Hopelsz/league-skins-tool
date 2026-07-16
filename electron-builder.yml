@@ -1,5 +1,5 @@
 appId: com.cslol.app
-productName: league-skins
+productName: League Skins
 directories:
   buildResources: build
 files:

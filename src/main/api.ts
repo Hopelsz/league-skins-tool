@@ -5,7 +5,7 @@
  * └───────────────────────────────────────────────────────────────────────────────┘
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, app } from 'electron'
 
 import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled } from './config'
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
@@ -64,3 +64,4 @@ ipcMain.handle('refreshLolSkins', async (_, forceMetadata = false) => {
   const skins = await getExistingSkins()
   return skins
 })
+ipcMain.handle('getAppVersion', () => app.getVersion())

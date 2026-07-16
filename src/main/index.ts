@@ -70,6 +70,7 @@ function createWindow(): void {
     height: 750,
     show: false,
     autoHideMenuBar: true,
+    title: 'League Skins',
     icon: icon,
     frame: false,
     resizable: false,
