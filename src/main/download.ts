@@ -402,6 +402,108 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
  * This function returns skins that have corresponding files on disk.
  * @returns {Promise<Skin[]>} the list of skins that exist on disk.
  */
+/**
+ * CDragon 元数据未收录的皮肤，但磁盘上可能已存在。
+ * 每个条目对应一个已知的"额外皮肤"，字段：
+ * - championName: 英雄中文名（用于匹配目录）
+ * - id: 皮肤在 DDragon 中的编号，用于拼 splash URL
+ * - name: 皮肤中文名（用于匹配文件名 + 界面显示）
+ */
+interface ExtraSkin {
+  championName: string
+  id: number
+  name: string
+  parentName: string
+}
+
+const EXTRA_SKINS: ExtraSkin[] = [
+  {
+    championName: '虚空之女',
+    id: 71,
+    name: '联盟不朽 卡莎',
+    parentName: '殿堂传奇 卡莎'
+  },
+  {
+    championName: '九尾妖狐',
+    id: 86,
+    name: '联盟不朽 阿狸',
+    parentName: '殿堂传奇 阿狸'
+  }
+]
+
+const normalizeForMatch = (s: string): string =>
+  s.toLowerCase().replace(/[:\s'"\u3000]/g, '')
+
+interface ExtraSkinResult {
+  skin: Skin
+  parentName: string
+}
+
+/**
+ * 扫描 EXTRA_SKINS 配置中的皮肤：
+ * 1. 查找对应英雄目录
+ * 2. 模糊匹配 .fantome / .zip 文件
+ * 3. 找到则返回 Skin 条目 + parentName（splash 用 DDragon 直链）
+ */
+async function getExtraSkins(
+  skinsLocation: string,
+  championByTitle: Map<string, Champion>
+): Promise<ExtraSkinResult[]> {
+  const result: ExtraSkinResult[] = []
+
+  for (const extra of EXTRA_SKINS) {
+    const champion = championByTitle.get(extra.championName)
+    if (!champion) continue
+
+    // 解析英雄目录名（可能用别名）
+    const possibleDirs = [extra.championName, ...(champion?.aliases ?? [])]
+    let championDir: string | null = null
+    for (const dirName of possibleDirs) {
+      const candidateDir = path.join(skinsLocation, dirName)
+      if (await locationExists(candidateDir)) {
+        championDir = candidateDir
+        break
+      }
+    }
+    if (!championDir) continue
+
+    // 扫描顶层文件，模糊匹配皮肤名
+    const files = await fs.readdir(championDir)
+    const normalizedTarget = normalizeForMatch(extra.name)
+    let found = false
+    for (const file of files) {
+      if (!file.endsWith('.fantome') && !file.endsWith('.zip')) continue
+      const fileNameWithoutExt = file.replace(/\.(zip|fantome)$/, '')
+      const normalizedFile = normalizeForMatch(fileNameWithoutExt)
+      if (normalizedFile.includes(normalizedTarget) || normalizedTarget.includes(normalizedFile)) {
+        found = true
+        break
+      }
+    }
+    if (!found) continue
+
+    // DDragon 直链 splash
+    const ddragonKey = champion.key // e.g. 'Kaisa'
+    const splashUrl = `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${ddragonKey}_${extra.id}.jpg`
+
+    result.push({
+      skin: {
+        id: extra.id * -1,
+        championId: champion.id,
+        championName: champion.name,
+        name: extra.name,
+        image: splashUrl,
+        imageAlt: champion.image,
+        imageAlt2: champion.imageAlt,
+        chromas: []
+      },
+      parentName: extra.parentName
+    })
+  }
+
+  return result
+}
+
 export async function getExistingSkins(): Promise<Skin[]> {
   const skinsLocation = await getSkinsLocation()
 
@@ -455,6 +557,25 @@ export async function getExistingSkins(): Promise<Skin[]> {
         break
       }
     }
+  }
+
+  // 将 CDragon 元数据未收录的额外皮肤插入到对应父皮肤后面
+  const extraSkins = await getExtraSkins(skinsLocation, championByTitle)
+  if (extraSkins.length > 0) {
+    for (const { skin, parentName } of extraSkins) {
+      const insertAt = existingSkins.findIndex(
+        (s) => s.championId === skin.championId && s.name === parentName
+      )
+      if (insertAt !== -1) {
+        existingSkins.splice(insertAt + 1, 0, skin)
+      } else {
+        existingSkins.push(skin)
+      }
+    }
+    console.log(
+      `[ExtraSkins] Added ${extraSkins.length} extra skin(s):`,
+      extraSkins.map((s) => s.skin.name)
+    )
   }
 
   cachedExistingSkins = existingSkins
