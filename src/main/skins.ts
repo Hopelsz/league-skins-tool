@@ -208,12 +208,6 @@ async function findSkinFile(championName: string, skinName: string, isChromaSear
       if (!subdir.isDirectory()) continue
       if (subdir.name === 'chromas') continue // 已在上面处理
 
-      const subdirNormalized = normalizeName(subdir.name)
-      const skinNormalized = normalizeName(skinName)
-      if (!subdirNormalized.includes(skinNormalized) && !skinNormalized.includes(subdirNormalized)) {
-        continue
-      }
-
       const subMatch = await findFileInDir(path.join(championDir, subdir.name), skinName)
       if (subMatch) return subMatch
     }
