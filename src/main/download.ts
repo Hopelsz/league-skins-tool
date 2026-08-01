@@ -27,7 +27,8 @@ import {
   type Skin,
   listChampions,
   listSkins,
-  getChampSkinIdFromSkinId
+  getChampSkinIdFromSkinId,
+  normalizeName
 } from './metadata'
 
 const downloadMutex = new Mutex()
@@ -194,12 +195,7 @@ async function decompressZip(buffer: Buffer, destination: string): Promise<void>
  * @returns {Promise<boolean>} whether the file or directory exists.
  */
 async function locationExists(location: string): Promise<boolean> {
-  try {
-    await fs.stat(location)
-    return true
-  } catch {
-    return false
-  }
+  return fs.pathExists(location)
 }
 
 /**
@@ -431,9 +427,6 @@ const EXTRA_SKINS: ExtraSkin[] = [
   }
 ]
 
-const normalizeForMatch = (s: string): string =>
-  s.toLowerCase().replace(/[:\s'"\u3000]/g, '')
-
 interface ExtraSkinResult {
   skin: Skin
   parentName: string
@@ -469,12 +462,12 @@ async function getExtraSkins(
 
     // 扫描顶层文件，模糊匹配皮肤名
     const files = await fs.readdir(championDir)
-    const normalizedTarget = normalizeForMatch(extra.name)
+    const normalizedTarget = normalizeName(extra.name)
     let found = false
     for (const file of files) {
       if (!file.endsWith('.fantome') && !file.endsWith('.zip')) continue
       const fileNameWithoutExt = file.replace(/\.(zip|fantome)$/, '')
-      const normalizedFile = normalizeForMatch(fileNameWithoutExt)
+      const normalizedFile = normalizeName(fileNameWithoutExt)
       if (normalizedFile.includes(normalizedTarget) || normalizedTarget.includes(normalizedFile)) {
         found = true
         break

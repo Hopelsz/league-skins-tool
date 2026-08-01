@@ -91,13 +91,6 @@ export default function App(): JSX.Element {
     }
   }, [showSettings])
 
-  // 在换肤中选择英雄时同时弹出悬浮窗（新增功能，不影响原有操作）
-  // useEffect(() => {
-  //   if (selectedChampion && floatWindowEnabled) {
-  //     window.api.showFloatWindow(selectedChampion)
-  //   }
-  // }, [selectedChampion, floatWindowEnabled])
-
   // 监听 LCU 事件：游戏中选择了英雄 → 自动弹出悬浮窗
   useEffect(() => {
     const unsubSelected = window.api.onLcuChampionSelected((champion: Champion) => {

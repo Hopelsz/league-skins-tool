@@ -1,16 +1,16 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 export default function RefreshButton({ onClick }: { onClick: () => void }): JSX.Element {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([])
-  let rippleId = 0
+  const rippleIdRef = useRef(0)
 
   const createRipple = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     const button = e.currentTarget
     const rect = button.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    const id = rippleId++
+    const id = rippleIdRef.current++
     
     setRipples(prev => [...prev, { id, x, y }])
     

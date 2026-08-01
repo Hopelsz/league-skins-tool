@@ -1438,7 +1438,7 @@ svg.cool-border:hover path {
 .float-window-spinner {
   width: 2rem;
   height: 2rem;
-  border: 2px solid rgba(200, 170, 110, 0.3);
+  border: 3px solid rgba(200, 170, 110, 0.3);
   border-top-color: #c8aa6e;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -1585,8 +1585,16 @@ svg.cool-border:hover path {
   z-index: 6;
 }
 
-/* 炫彩圆点应用中状态 */
+/* 炫彩圆点应用中：圆点变为旋转加载环 */
 .float-chroma-dot.applying {
-  opacity: 0.5;
   pointer-events: none;
+  background: transparent;
+  border: 2px solid rgba(200, 170, 110, 0.25);
+  border-top-color: #c8aa6e;
+  border-radius: 50%;
+  animation: chroma-dot-spin 0.6s linear infinite;
+}
+
+@keyframes chroma-dot-spin {
+  to { transform: rotate(360deg); }
 }

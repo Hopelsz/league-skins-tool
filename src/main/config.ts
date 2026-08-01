@@ -115,21 +115,7 @@ export async function isLeaguePathValid(leaguePath: string): Promise<boolean> {
  */
 export async function setLeaguePath(leaguePath: string): Promise<boolean> {
   if (!(await isLeaguePathValid(leaguePath))) return false
-
-  const normalizedPath = leaguePath.toLowerCase()
-  const isExeFile = normalizedPath.endsWith('.exe')
-  const isGameDir = normalizedPath.endsWith('game') || normalizedPath.endsWith('game\\')
-
-  let finalPath = leaguePath
-
-  if (isExeFile) {
-    finalPath = path.dirname(leaguePath)
-  }
-
-  if (isGameDir || finalPath.toLowerCase().endsWith('game')) {
-    finalPath = path.dirname(finalPath)
-  }
-
+  const finalPath = await normalizeLeaguePath(leaguePath)
   await setConfigValue('leaguePath', finalPath)
   return true
 }

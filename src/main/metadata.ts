@@ -56,6 +56,13 @@ let cachedSkins: Skin[] | null = null
 let cachedRawData: SkinRaw[] | null = null
 
 /**
+ * 规范化名称用于模糊匹配：小写 + 去除特殊字符、空格和全角空格。
+ */
+export function normalizeName(s: string): string {
+  return s.toLowerCase().replace(/[:\s'"\u3000]/g, '')
+}
+
+/**
  * 清除缓存，在重新下载元数据后调用。
  */
 export function invalidateMetadataCache(): void {

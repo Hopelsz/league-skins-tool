@@ -18,7 +18,7 @@ import {
   TEMP_DIR
 } from './constants'
 import type { Skin, Chroma } from './metadata'
-import { listChampions, listSkins as listAllSkins } from './metadata'
+import { listChampions, listSkins as listAllSkins, normalizeName } from './metadata'
 import { getLeaguePath, setCurrentSkinId, getCurrentSkinId, setChampionSkinId, removeChampionSkinId, getChampionSkins, clearAllChampionSkins, getMultiChampionSkinEnabled } from './config'
 import { getSkinsLocation } from './download'
 
@@ -64,13 +64,6 @@ async function resolveChampionDir(championName: string): Promise<string | null> 
     }
   }
   return null
-}
-
-/**
- * Normalize a string for fuzzy matching: lowercase, remove spaces/colons/quotes.
- */
-function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[:\s'"\u3000]/g, '')
 }
 
 /**

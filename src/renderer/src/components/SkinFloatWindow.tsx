@@ -155,7 +155,10 @@ export default function SkinFloatWindow(): JSX.Element {
           <div className="float-window-skin-grid">
             {championSkins.map((skin) => {
               const skinKey = `${skin.championId}-${skin.id}`
-              const isApplyingThis = isApplying && applyingId === skinKey
+              const isApplyingThis =
+                isApplying &&
+                (applyingId === skinKey ||
+                  !!skin.chromas?.some((c) => `${c.championId}-${c.id}` === applyingId))
               return (
                 <div
                   key={skin.id}
