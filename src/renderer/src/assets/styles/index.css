@@ -1544,8 +1544,8 @@ svg.cool-border:hover path {
 }
 
 .float-chroma-dot {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 1rem;
+  height: 1rem;
   border-radius: 50%;
   border: 1px solid rgba(120, 91, 40, 0.4);
   cursor: pointer;
