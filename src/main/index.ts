@@ -112,12 +112,18 @@ function createWindow(): void {
     return mainWindow?.isMaximized() ?? false
   })
 
+  let isInitialShow = true
+
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
-    // 窗口显示后再延迟启动 LCU 监控，避免和启动流程竞争资源
-    setTimeout(() => {
-      startLcuMonitor()
-    }, 3000)
+  })
+
+  mainWindow.on('show', () => {
+    if (isInitialShow) {
+      // 首次启动延迟 LCU 监控，避免和页面加载竞争
+      setTimeout(() => startLcuMonitor(), 2000)
+      isInitialShow = false
+    }
   })
 
   mainWindow.on('maximize', () => {
@@ -250,7 +256,7 @@ function setupFloatWindowIPC(): void {
   // 主窗口请求隐藏浮动窗口
   ipcMain.on('hide-float-window', () => {
     if (floatWindow && !floatWindow.isDestroyed()) {
-      floatWindow.hide()
+      floatWindow.close()
     }
   })
 }
