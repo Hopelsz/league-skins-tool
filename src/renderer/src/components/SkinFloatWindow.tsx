@@ -156,7 +156,7 @@ export default function SkinFloatWindow(): JSX.Element {
       el.removeEventListener('wheel', onWheel)
       if (wheelRaf !== null) cancelAnimationFrame(wheelRaf)
     }
-  }, [isHorizontal])
+  }, [isHorizontal, champion])
 
   const isSkinOrChromaApplied = (skin: Skin): boolean => {
     if (`${skin.championId}-${skin.id}` === currentSkinId) return true
