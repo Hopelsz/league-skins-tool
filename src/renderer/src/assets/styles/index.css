@@ -587,6 +587,16 @@ svg.cool-border:hover path {
   box-shadow: 0 0 0 1px #c8aa6e40;
 }
 
+/* 悬浮窗关闭时位置选择不可用 */
+.segmented-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.segmented-btn:disabled:hover {
+  color: #5a6a7a;
+}
+
 /* Close Dialog Remember Checkbox */
 .close-remember-checkbox {
   appearance: none;
@@ -1323,8 +1333,9 @@ svg.cool-border:hover path {
 
 .float-window-title {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.4rem;
   min-width: 0;
 }
 
@@ -1450,6 +1461,111 @@ svg.cool-border:hover path {
   gap: 0.3rem;
 }
 
+/* 悬浮窗滚动区域包裹层：作为箭头按钮的定位基准（相对定位），
+   滚动容器是内部 .float-window-body，箭头固定在两侧不随内容移动 */
+.float-skin-scroll-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* 悬浮窗位于上方/下方：横向一排滚动展示 */
+.float-window-body.horizontal {
+  display: flex;
+  overflow-y: hidden;
+  overflow-x: auto;
+  padding: 0.4rem 0;
+  margin: 0 2rem;
+  scrollbar-width: none;
+}
+
+.float-window-body.horizontal::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.float-window-body.horizontal::-webkit-scrollbar-thumb {
+  background: rgba(200, 170, 110, 0.4);
+  border-radius: 2px;
+}
+
+.float-window-body.horizontal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 横向布局左右翻页箭头：尖三角 + 金色渐变（LOL 风格） */
+.float-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 26px;
+  height: 56px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+.float-scroll-btn span {
+  width: 15px;
+  height: 28px;
+  background: linear-gradient(to right, #8a6527 0%, #c8a455 55%, #f5e6c0 100%);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  filter: drop-shadow(0 0 4px rgba(200, 170, 110, 0.6));
+  transition: filter 0.15s ease;
+}
+
+/* 左箭头镜像指向左 */
+.float-scroll-left span {
+  transform: scaleX(-1);
+}
+
+.float-scroll-btn:hover:not(.disabled) span {
+  filter: drop-shadow(0 0 8px rgba(240, 230, 210, 0.9));
+}
+
+.float-scroll-btn.disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.float-scroll-left {
+  left: 4px;
+}
+
+.float-scroll-right {
+  right: 4px;
+}
+
+.float-window-body.horizontal .float-window-skin-grid {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.float-window-body.horizontal .float-skin-card {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.float-window-body.horizontal .float-skin-image-wrapper {
+  aspect-ratio: auto;
+  width: 110px;
+  height: 200px;
+}
+
+.float-window-body.horizontal .float-skin-applied-badge svg {
+  width: 32px;
+  height: 32px;
+}
+
 .float-skin-card {
   position: relative;
   display: flex;
@@ -1536,11 +1652,19 @@ svg.cool-border:hover path {
 }
 
 .float-chroma-row {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 4px;
+  z-index: 6;
   display: flex;
   justify-content: center;
-  gap: 0.2rem;
-  padding: 0.15rem 0.2rem 0.25rem;
   flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.35rem 0.3rem;
+  border-radius: 12px;
+  background-color: rgba(0, 0, 0, 0.75);
+  pointer-events: none; /* 空白区域不拦截点击，圆点自身可点 */
 }
 
 .float-chroma-dot {
@@ -1551,6 +1675,7 @@ svg.cool-border:hover path {
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  pointer-events: auto;
 }
 
 .float-chroma-dot:hover {

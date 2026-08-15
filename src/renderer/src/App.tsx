@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-import { Champion, CloseBehavior } from './types'
+import { Champion, CloseBehavior, FloatWindowPosition } from './types'
 import Providers from '@renderer/components/providers/Main'
 import WelcomePage from '@renderer/components/WelcomePage'
 import PathSetter from '@renderer/components/PathSetter'
@@ -24,6 +24,7 @@ export default function App(): JSX.Element {
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const [floatWindowEnabled, setFloatWindowEnabled] = useState(true)
+  const [floatWindowPosition, setFloatWindowPosition] = useState<FloatWindowPosition>('right')
   const [multiChampionSkinEnabled, setMultiChampionSkinEnabled] = useState(true)
   const [closeBehaviorValue, setCloseBehaviorValue] = useState<CloseBehavior>('ask')
   const [settingsTab, setSettingsTab] = useState('game')
@@ -77,6 +78,8 @@ export default function App(): JSX.Element {
     ;(async (): Promise<void> => {
       const enabled = await window.api.getFloatWindowEnabled()
       setFloatWindowEnabled(enabled)
+      const position = await window.api.getFloatWindowPosition()
+      setFloatWindowPosition(position)
       const multiEnabled = await window.api.getMultiChampionSkinEnabled()
       setMultiChampionSkinEnabled(multiEnabled)
       const behavior = await window.api.getCloseBehavior()
@@ -280,6 +283,28 @@ export default function App(): JSX.Element {
                     >
                       <span className="toggle-slider" />
                     </label>
+                  </div>
+                  <span className="settings-radio-label">悬浮窗位置</span>
+                  <div className="settings-segmented">
+                    {([
+                      ['right', '右侧'],
+                      ['left', '左侧'],
+                      ['top', '上方'],
+                      ['bottom', '下方']
+                    ] as [FloatWindowPosition, string][]).map(([value, label]) => (
+                      <button
+                        key={value}
+                        className={`segmented-btn ${floatWindowPosition === value ? 'active' : ''}`}
+                        disabled={!floatWindowEnabled}
+                        onClick={async () => {
+                          if (!floatWindowEnabled) return
+                          setFloatWindowPosition(value)
+                          await window.api.setFloatWindowPosition(value)
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                   <div className="settings-toggle-item">
                     <div className="settings-toggle-text">

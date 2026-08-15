@@ -6,11 +6,12 @@
  * └───────────────────────────────────────────────────────────────────────────────┘
  */
 
-import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import './api'
-import { type Champion } from './metadata'
+import { type Champion, listChampions } from './metadata'
+import { getFloatWindowPosition } from './config'
 import { startLcuMonitor, stopLcuMonitor } from './lcu'
 
 import icon from '../../resources/icon.png?asset'
@@ -156,6 +157,8 @@ function createWindow(): void {
 
   // ========== 浮动窗口 IPC 处理 ==========
   setupFloatWindowIPC()
+  // 调试模式：dev 环境下启动即显示悬浮窗，便于调试布局
+  setupDebugFloatWindow()
 }
 
 // ---------- 浮动窗口 ----------
@@ -173,6 +176,58 @@ function getFloatWindowURLOptions(): Record<string, string> {
   }
   // 生产环境通过 hash 传参
   return { hash: 'float' }
+}
+
+/** 上方/下方横向布局时悬浮窗的高度（容纳标题栏 + 一排皮肤卡片） */
+const FLOAT_WINDOW_HORIZONTAL_HEIGHT = 260
+
+/**
+ * 根据配置计算悬浮窗位置（右侧/左侧/上方/下方）。
+ * 右侧/左侧：380×主窗口高度，纵向列表；上方/下方：主窗口宽度×260，横向一排皮肤。
+ * 最终坐标 clamp 到主窗口所在屏幕的工作区，避免窗口移出屏幕不可见。
+ */
+async function computeFloatWindowBounds(): Promise<Electron.Rectangle> {
+  const mainBounds = mainWindow!.getBounds()
+  const position = await getFloatWindowPosition()
+
+  let width = 380
+  let height = mainBounds.height
+  let x = mainBounds.x
+  let y = mainBounds.y
+  switch (position) {
+    case 'left':
+      x = mainBounds.x - width
+      break
+    case 'top':
+      width = mainBounds.width
+      height = FLOAT_WINDOW_HORIZONTAL_HEIGHT
+      y = mainBounds.y - height
+      break
+    case 'bottom':
+      width = mainBounds.width
+      height = FLOAT_WINDOW_HORIZONTAL_HEIGHT
+      y = mainBounds.y + mainBounds.height
+      break
+    default: // 'right'
+      x = mainBounds.x + mainBounds.width
+  }
+
+  const { workArea } = screen.getDisplayMatching(mainBounds)
+  x = Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width)
+  y = Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height)
+  return { x, y, width, height }
+}
+
+/** 悬浮窗正在显示时，按最新配置立即重定位（由设置变更触发），并通知渲染进程切换布局 */
+export function refreshFloatWindowPosition(): void {
+  if (floatWindow && !floatWindow.isDestroyed()) {
+    Promise.all([computeFloatWindowBounds(), getFloatWindowPosition()]).then(
+      ([bounds, position]) => {
+        floatWindow?.setBounds(bounds)
+        floatWindow?.webContents.send('float-window-position-changed', position)
+      },
+    )
+  }
 }
 
 function createFloatWindow(): BrowserWindow {
@@ -211,46 +266,55 @@ function createFloatWindow(): BrowserWindow {
   return floatWindow
 }
 
+/** 显示悬浮窗并发送英雄数据（窗口不存在则先创建） */
+function showFloatWindow(champion: Champion): void {
+  if (floatWindow && !floatWindow.isDestroyed()) {
+    // 更新位置
+    computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
+    floatWindow.show()
+    floatWindow.focus()
+  } else {
+    floatWindow = createFloatWindow()
+    floatWindow.once('ready-to-show', () => {
+      if (floatWindow) {
+        computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
+        floatWindow.show()
+        // 发送英雄数据到浮动窗口
+        floatWindow.webContents.send('float-champion-data', champion)
+      }
+    })
+    // 如果已经 ready 了（极快加载的情况）
+    floatWindow.webContents.on('did-finish-load', () => {
+      if (floatWindow) {
+        floatWindow.webContents.send('float-champion-data', champion)
+      }
+    })
+    return
+  }
+  // 窗口已存在，直接发送数据
+  floatWindow.webContents.send('float-champion-data', champion)
+}
+
+/**
+ * 调试模式：不依赖游戏"确定英雄"事件，启动后自动显示悬浮窗。
+ * 仅 dev 环境生效，设置环境变量 LEAGUE_SKINS_DEBUG_FLOAT=0 可关闭。
+ */
+function setupDebugFloatWindow(): void {
+  if (process.env['LEAGUE_SKINS_DEBUG_FLOAT'] === '0') return
+  if (!is.dev) return
+  setTimeout(async () => {
+    const champions = await listChampions()
+    const champion = champions[0]
+    if (champion) {
+      showFloatWindow(champion)
+    }
+  }, 1000)
+}
+
 function setupFloatWindowIPC(): void {
   // 主窗口请求显示浮动窗口
   ipcMain.on('show-float-window', (_event, champion: Champion) => {
-    if (floatWindow && !floatWindow.isDestroyed()) {
-      // 更新位置
-      const mainBounds = mainWindow!.getBounds()
-      floatWindow.setBounds({
-        x: mainBounds.x + mainBounds.width,
-        y: mainBounds.y,
-        width: 380,
-        height: mainBounds.height
-      })
-      floatWindow.show()
-      floatWindow.focus()
-    } else {
-      floatWindow = createFloatWindow()
-      floatWindow.once('ready-to-show', () => {
-        if (floatWindow) {
-          const mainBounds = mainWindow!.getBounds()
-          floatWindow.setBounds({
-            x: mainBounds.x + mainBounds.width,
-            y: mainBounds.y,
-            width: 380,
-            height: mainBounds.height
-          })
-          floatWindow.show()
-          // 发送英雄数据到浮动窗口
-          floatWindow.webContents.send('float-champion-data', champion)
-        }
-      })
-      // 如果已经 ready 了（极快加载的情况）
-      floatWindow.webContents.on('did-finish-load', () => {
-        if (floatWindow) {
-          floatWindow.webContents.send('float-champion-data', champion)
-        }
-      })
-      return
-    }
-    // 窗口已存在，直接发送数据
-    floatWindow.webContents.send('float-champion-data', champion)
+    showFloatWindow(champion)
   })
 
   // 主窗口请求隐藏浮动窗口

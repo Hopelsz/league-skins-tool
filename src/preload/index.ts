@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 import { Champion, Skin, Chroma } from '../main/metadata'
+import { type FloatWindowPosition } from '../main/config'
 
 const api = {
   isCurrentLeaguePathValid: (): Promise<boolean> => ipcRenderer.invoke('isCurrentLeaguePathValid'),
@@ -31,6 +32,8 @@ const api = {
   setCloseBehavior: (behavior: string): Promise<void> => ipcRenderer.invoke('setCloseBehavior', behavior),
   getFloatWindowEnabled: (): Promise<boolean> => ipcRenderer.invoke('getFloatWindowEnabled'),
   setFloatWindowEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setFloatWindowEnabled', enabled),
+  getFloatWindowPosition: (): Promise<FloatWindowPosition> => ipcRenderer.invoke('getFloatWindowPosition'),
+  setFloatWindowPosition: (position: FloatWindowPosition): Promise<void> => ipcRenderer.invoke('setFloatWindowPosition', position),
   getMultiChampionSkinEnabled: (): Promise<boolean> => ipcRenderer.invoke('getMultiChampionSkinEnabled'),
   setMultiChampionSkinEnabled: (enabled: boolean): Promise<void> => ipcRenderer.invoke('setMultiChampionSkinEnabled', enabled),
   refreshLolSkins: (forceMetadata = false): Promise<Skin[]> => ipcRenderer.invoke('refreshLolSkins', forceMetadata),
@@ -54,6 +57,11 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, champion: Champion) => callback(champion)
     ipcRenderer.on('float-champion-data', handler)
     return () => ipcRenderer.removeListener('float-champion-data', handler)
+  },
+  onFloatWindowPositionChanged: (callback: (position: FloatWindowPosition) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, position: FloatWindowPosition) => callback(position)
+    ipcRenderer.on('float-window-position-changed', handler)
+    return () => ipcRenderer.removeListener('float-window-position-changed', handler)
   },
   // 皮肤状态同步
   onSkinStateChanged: (callback: (championId: number, skinId: string | null) => void): (() => void) => {

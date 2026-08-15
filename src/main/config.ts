@@ -257,6 +257,18 @@ export async function setFloatWindowEnabled(enabled: boolean): Promise<void> {
   await setConfigValue('floatWindowEnabled', String(enabled))
 }
 
+export type FloatWindowPosition = 'right' | 'left' | 'top' | 'bottom'
+
+export async function getFloatWindowPosition(): Promise<FloatWindowPosition> {
+  const val = await getConfigValue('floatWindowPosition')
+  if (val === 'left' || val === 'top' || val === 'bottom') return val
+  return 'right'
+}
+
+export async function setFloatWindowPosition(position: FloatWindowPosition): Promise<void> {
+  await setConfigValue('floatWindowPosition', position)
+}
+
 export async function getMultiChampionSkinEnabled(): Promise<boolean> {
   const val = await getConfigValue('multiChampionSkinEnabled')
   // 默认开启（保持向后兼容）

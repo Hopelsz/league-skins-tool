@@ -33,6 +33,8 @@ export interface Chroma {
 
 export type CloseBehavior = 'ask' | 'tray' | 'quit'
 
+export type FloatWindowPosition = 'right' | 'left' | 'top' | 'bottom'
+
 export interface Api {
   isCurrentLeaguePathValid: () => Promise<boolean>
   askAndSetLeaguePath: () => Promise<boolean>
@@ -65,12 +67,15 @@ export interface Api {
   setCloseBehavior: (behavior: CloseBehavior) => Promise<void>
   getFloatWindowEnabled: () => Promise<boolean>
   setFloatWindowEnabled: (enabled: boolean) => Promise<void>
+  getFloatWindowPosition: () => Promise<FloatWindowPosition>
+  setFloatWindowPosition: (position: FloatWindowPosition) => Promise<void>
   getMultiChampionSkinEnabled: () => Promise<boolean>
   setMultiChampionSkinEnabled: (enabled: boolean) => Promise<void>
   // 浮动窗口
   showFloatWindow: (champion: Champion) => void
   hideFloatWindow: () => void
   onFloatChampionData: (callback: (champion: Champion) => void) => () => void
+  onFloatWindowPositionChanged: (callback: (position: FloatWindowPosition) => void) => () => void
   // 皮肤状态同步
   onSkinStateChanged: (callback: (championId: number, skinId: string | null) => void) => () => void
   // LCU 通信事件

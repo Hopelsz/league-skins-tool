@@ -7,7 +7,7 @@
 
 import { ipcMain, BrowserWindow, app } from 'electron'
 
-import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled } from './config'
+import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled, getFloatWindowPosition, setFloatWindowPosition, type FloatWindowPosition } from './config'
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions, invalidateMetadataCache } from './metadata'
@@ -51,6 +51,13 @@ ipcMain.handle('getCloseBehavior', getCloseBehavior)
 ipcMain.handle('setCloseBehavior', (_, behavior) => setCloseBehavior(behavior))
 ipcMain.handle('getFloatWindowEnabled', getFloatWindowEnabled)
 ipcMain.handle('setFloatWindowEnabled', (_, enabled: boolean) => setFloatWindowEnabled(enabled))
+ipcMain.handle('getFloatWindowPosition', getFloatWindowPosition)
+ipcMain.handle('setFloatWindowPosition', async (_, position: FloatWindowPosition) => {
+  await setFloatWindowPosition(position)
+  // 悬浮窗正在显示时立即按新位置重定位；动态 import 避免与 index.ts 循环依赖
+  const { refreshFloatWindowPosition } = await import('./index')
+  refreshFloatWindowPosition()
+})
 ipcMain.handle('getMultiChampionSkinEnabled', getMultiChampionSkinEnabled)
 ipcMain.handle('setMultiChampionSkinEnabled', (_, enabled: boolean) => setMultiChampionSkinEnabled(enabled))
 ipcMain.handle('refreshLolSkins', async (_, forceMetadata = false) => {

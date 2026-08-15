@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
-import { Champion, Skin, Chroma } from '../types'
+import { Champion, Skin, Chroma, FloatWindowPosition } from '../types'
 import ImageLoader from '@renderer/components/ImageLoader'
 
 export default function SkinFloatWindow(): JSX.Element {
@@ -10,12 +10,19 @@ export default function SkinFloatWindow(): JSX.Element {
   const [isApplying, setIsApplying] = useState(false)
   const [applyingId, setApplyingId] = useState<string | null>(null)  // 正在应用中的皮肤ID
   const [dataLoading, setDataLoading] = useState(false)  // 初次加载皮肤数据
+  const [position, setPosition] = useState<FloatWindowPosition>('right')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollAnimRef = useRef<number | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
 
   // 监听来自主进程的英雄数据
   useEffect(() => {
     const unsubscribe = window.api.onFloatChampionData(async (champ: Champion) => {
       setChampion(champ)
       setDataLoading(true)
+      // 读取当前悬浮窗位置（上方/下方时切换横向布局）
+      setPosition(await window.api.getFloatWindowPosition())
       // 获取皮肤列表
       try {
         const skins = await window.api.getExistingSkins()
@@ -40,7 +47,13 @@ export default function SkinFloatWindow(): JSX.Element {
         setDataLoading(false)
       }
     })
-    return unsubscribe
+
+    // 主窗口切换悬浮窗位置时，实时切换布局
+    const unsubPos = window.api.onFloatWindowPositionChanged((pos) => setPosition(pos))
+    return () => {
+      unsubscribe()
+      unsubPos()
+    }
   }, [])
 
   // 监听皮肤状态变更（来自另一个窗口的操作）
@@ -65,6 +78,85 @@ export default function SkinFloatWindow(): JSX.Element {
   const championSkins = champion
     ? allSkins.filter((skin) => skin.championId === champion.id && skin.id !== 0)
     : []
+
+  const isHorizontal = position === 'top' || position === 'bottom'
+
+  // 根据滚动位置更新箭头可见性（横向布局溢出时显示）
+  const updateScrollButtons = useCallback((): void => {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 1)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  // 皮肤列表渲染完成或位置切换后，重新检查是否溢出
+  useEffect(() => {
+    if (!isHorizontal || dataLoading) return
+    const timer = setTimeout(updateScrollButtons, 50)
+    return () => clearTimeout(timer)
+  }, [isHorizontal, dataLoading, championSkins.length, updateScrollButtons])
+
+  // 横向滚动：按整卡翻页（3 张），rAF 缓动动画保证平滑，连点自动衔接
+  const scrollByPage = useCallback((dir: -1 | 1): void => {
+    const el = scrollRef.current
+    if (!el) return
+    if (scrollAnimRef.current !== null) cancelAnimationFrame(scrollAnimRef.current)
+    const step = (110 + 6.4) * 3 // 卡片宽 + gap，3 张一页
+    const start = el.scrollLeft
+    const target = start + dir * step
+    const duration = 300
+    const startTime = performance.now()
+    const animate = (now: number): void => {
+      const t = Math.min((now - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic
+      el.scrollLeft = start + (target - start) * eased
+      scrollAnimRef.current = t < 1 ? requestAnimationFrame(animate) : null
+    }
+    scrollAnimRef.current = requestAnimationFrame(animate)
+  }, [])
+
+  // 鼠标滚轮横向滑动（仅横向布局）：滚轮转水平滚动 + rAF 平滑
+  useEffect(() => {
+    if (!isHorizontal) return
+    const el = scrollRef.current
+    if (!el) return
+    let wheelTarget: number | null = null
+    let wheelRaf: number | null = null
+
+    const onWheel = (e: WheelEvent): void => {
+      e.preventDefault()
+      // 箭头翻页动画进行中先取消，避免两套 rAF 争抢 scrollLeft
+      if (scrollAnimRef.current !== null) {
+        cancelAnimationFrame(scrollAnimRef.current)
+        scrollAnimRef.current = null
+      }
+      const max = el.scrollWidth - el.clientWidth
+      wheelTarget = Math.max(0, Math.min(max, el.scrollLeft + e.deltaY + e.deltaX))
+      if (wheelRaf !== null) return
+      const animate = (): void => {
+        if (wheelTarget === null) {
+          wheelRaf = null
+          return
+        }
+        const diff = wheelTarget - el.scrollLeft
+        if (Math.abs(diff) < 0.5) {
+          el.scrollLeft = wheelTarget
+          wheelTarget = null
+          wheelRaf = null
+          return
+        }
+        el.scrollLeft += diff * 0.25
+        wheelRaf = requestAnimationFrame(animate)
+      }
+      wheelRaf = requestAnimationFrame(animate)
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      if (wheelRaf !== null) cancelAnimationFrame(wheelRaf)
+    }
+  }, [isHorizontal])
 
   const isSkinOrChromaApplied = (skin: Skin): boolean => {
     if (`${skin.championId}-${skin.id}` === currentSkinId) return true
@@ -140,20 +232,25 @@ export default function SkinFloatWindow(): JSX.Element {
         </div>
       </div>
 
-      {/* 皮肤列表 */}
-      <div className="float-window-body">
-        {dataLoading ? (
-          <div className="float-window-empty">
-            <div className="float-window-spinner" />
-            <p>加载皮肤数据...</p>
-          </div>
-        ) : championSkins.length === 0 ? (
-          <div className="float-window-empty">
-            <p>没有找到该英雄的皮肤</p>
-          </div>
-        ) : (
-          <div className="float-window-skin-grid">
-            {championSkins.map((skin) => {
+      {/* 皮肤列表（上方/下方时横向一排展示） */}
+      <div className="float-skin-scroll-wrap">
+        <div
+          className={`float-window-body ${isHorizontal ? 'horizontal' : ''}`}
+          ref={scrollRef}
+          onScroll={updateScrollButtons}
+        >
+          {dataLoading ? (
+            <div className="float-window-empty">
+              <div className="float-window-spinner" />
+              <p>加载皮肤数据...</p>
+            </div>
+          ) : championSkins.length === 0 ? (
+            <div className="float-window-empty">
+              <p>没有找到该英雄的皮肤</p>
+            </div>
+          ) : (
+            <div className="float-window-skin-grid">
+              {championSkins.map((skin) => {
               const skinKey = `${skin.championId}-${skin.id}`
               const isApplyingThis =
                 isApplying &&
@@ -189,38 +286,60 @@ export default function SkinFloatWindow(): JSX.Element {
                         </svg>
                       </div>
                     )}
+                    {/* 炫彩小圆点：悬在图片底部 */}
+                    {skin.chromas && skin.chromas.length > 0 && (
+                      <div className="float-chroma-row">
+                        {skin.chromas
+                          .filter((c) => c.colors?.length)
+                          .map((chroma) => {
+                            const chromaKey = `${chroma.championId}-${chroma.id}`
+                            const isSelected = chromaKey === currentSkinId
+                            const isApplyingChroma = isApplying && applyingId === chromaKey
+                            return (
+                              <div
+                                key={chroma.id}
+                                className={`float-chroma-dot ${isSelected ? 'selected' : ''} ${isApplyingChroma ? 'applying' : ''}`}
+                                style={{
+                                  background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})`
+                                }}
+                                title={chroma.name}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleApplyChroma(chroma)
+                                }}
+                              />
+                            )
+                          })}
+                      </div>
+                    )}
                   </div>
-                  {/* 炫彩小圆点 */}
-                  {skin.chromas && skin.chromas.length > 0 && (
-                    <div className="float-chroma-row">
-                      {skin.chromas
-                        .filter((c) => c.colors?.length)
-                        .map((chroma) => {
-                          const chromaKey = `${chroma.championId}-${chroma.id}`
-                          const isSelected = chromaKey === currentSkinId
-                          const isApplyingChroma = isApplying && applyingId === chromaKey
-                          return (
-                            <div
-                              key={chroma.id}
-                              className={`float-chroma-dot ${isSelected ? 'selected' : ''} ${isApplyingChroma ? 'applying' : ''}`}
-                              style={{
-                                background: `linear-gradient(to top right, ${chroma.colors?.join(', ')})`
-                              }}
-                              title={chroma.name}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleApplyChroma(chroma)
-                              }}
-                            />
-                          )
-                        })}
-                    </div>
-                  )}
                   <div className="float-skin-name">{skin.name}</div>
                 </div>
               )
             })}
-          </div>
+            </div>
+          )}
+        </div>
+        {/* 横向布局左右箭头：固定在 wrap 两侧，不随滚动容器移动 */}
+        {isHorizontal && (
+          <>
+            <button
+              className={`float-scroll-btn float-scroll-left ${!canScrollLeft ? 'disabled' : ''}`}
+              onClick={() => canScrollLeft && scrollByPage(-1)}
+              disabled={!canScrollLeft}
+              title="向左查看更多"
+            >
+              <span aria-hidden="true" />
+            </button>
+            <button
+              className={`float-scroll-btn float-scroll-right ${!canScrollRight ? 'disabled' : ''}`}
+              onClick={() => canScrollRight && scrollByPage(1)}
+              disabled={!canScrollRight}
+              title="向右查看更多"
+            >
+              <span aria-hidden="true" />
+            </button>
+          </>
         )}
       </div>
     </div>
