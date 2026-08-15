@@ -27,6 +27,83 @@ let runningProcess: ChildProcess | null = null
 // Cache champion titles → champion data to avoid repeated calls
 let championDirCache: Map<string, string[]> | null = null
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * 停止当前 overlay 进程并等待其完全退出，释放对 temp 目录文件的句柄。
+ *
+ * Windows 下 child.kill() 只终止直接子进程（且为异步），runoverlay 派生的
+ * 子进程可能残留并继续占用 WAD 文件，导致后续 fs.remove 报 EBUSY。
+ * 因此等待退出后，再用 taskkill /T 结束整个进程树兜底。
+ */
+async function stopOverlay(): Promise<void> {
+  const proc = runningProcess
+  runningProcess = null
+  if (!proc || proc.exitCode !== null || proc.signalCode !== null) return
+
+  if (process.platform === 'win32' && proc.pid) {
+    // 关键：必须在父进程仍存活时先 taskkill /T /F 递归杀掉整个进程树，
+    // 否则父进程先退出后，孤儿进程的 pid 无法再通过父 pid 定位，会继续
+    // 占用 WAD 文件导致后续 fs.remove 报 EBUSY。
+    try {
+      await promisifiedExec(`taskkill /pid ${proc.pid} /T /F`)
+    } catch {
+      // taskkill 失败（权限不足等）时兜底直接终止父进程
+      proc.kill()
+    }
+    // 等待进程树退出（taskkill /F 后通常很快，1s 足够）；
+    // 超时不阻塞——残留句柄由 removeWithRetry 重试兜底。
+    await new Promise<void>((resolve) => {
+      if (proc.exitCode !== null) return resolve()
+      const timer = setTimeout(() => {
+        proc.kill() // 兜底：taskkill 异常时再终止一次父进程
+        resolve()
+      }, 1000)
+      proc.once('exit', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+    })
+  } else {
+    proc.kill('SIGKILL')
+  }
+}
+
+/**
+ * 删除文件/目录；Windows 上进程退出后句柄释放有延迟（或杀软扫描），
+ * 对 EBUSY/EPERM 做短重试，避免整次操作失败。
+ */
+async function removeWithRetry(target: string, attempts = 8, delayMs = 250): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await fs.remove(target)
+      return
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if ((code === 'EBUSY' || code === 'EPERM') && i < attempts - 1) {
+        await sleep(delayMs)
+        continue
+      }
+      throw err
+    }
+  }
+}
+
+/**
+ * 执行 cslol-manager 工具命令（import/mkoverlay），带超时和耗时日志。
+ * 超时默认 120s，避免 exe 卡死时应用流程无限挂起；慢时在控制台可见卡在哪一步。
+ */
+async function runTool(cmd: string, timeoutMs = 120_000): Promise<void> {
+  console.log(`[skins] exec: ${cmd}`)
+  const start = Date.now()
+  try {
+    await promisifiedExec(cmd, { timeout: timeoutMs })
+  } catch (err) {
+    throw new Error(`命令执行失败（耗时 ${Date.now() - start}ms，超时 ${timeoutMs}ms）: ${cmd}\n${(err as Error).message}`)
+  }
+  console.log(`[skins] done in ${Date.now() - start}ms`)
+}
+
 /**
  * Build a map from champion title (current or alias) to all possible directory names.
  */
@@ -253,10 +330,7 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
   }
   const gamePath = path.join(await getLeaguePath(), 'Game')
 
-  if (runningProcess) {
-    runningProcess.kill()
-    runningProcess = null
-  }
+  await stopOverlay()
 
   // 检查多英雄皮肤开关
   const multiEnabled = await getMultiChampionSkinEnabled()
@@ -266,13 +340,17 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     await fs.ensureDir(TEMP_DIR)
     await fs.ensureDir(skinsDirDestination)
 
+    // 清理单英雄模式遗留的 mod 目录（skin），否则 mkoverlay 打包时
+    // 会与 champion_* 中同名 WAD 冲突（如 XinZhao.wad.client）
+    await fs.remove(path.join(skinsDirDestination, 'skin'))
+
     // Each champion gets its own mod subdirectory: skins/champion_{id}
     const modName = `champion_${skin.championId}`
     const modDir = path.join(skinsDirDestination, modName)
 
     // Remove old mod for this champion, then re-import
-    await fs.remove(modDir)
-    await promisifiedExec(
+    await removeWithRetry(modDir)
+    await runTool(
       `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${modDir}" --game:"${gamePath}"`,
     )
 
@@ -285,7 +363,7 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     }
 
     const modsArg = modNames.join('/')
-    await promisifiedExec(
+    await runTool(
       `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
     )
 
@@ -300,14 +378,14 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     await setChampionSkinId(skin.championId, skinId)
   } else {
     // 单英雄模式（旧逻辑）：每次清空 TEMP_DIR，只导入一个 mod
-    await fs.remove(TEMP_DIR)
+    await removeWithRetry(TEMP_DIR)
     await fs.ensureDir(TEMP_DIR)
 
-    await promisifiedExec(
+    await runTool(
       `${CSLOL_MANAGER_EXECUTABLE} import "${skinPath}" "${path.join(skinsDirDestination, 'skin')}" --game:"${gamePath}"`,
     )
 
-    await promisifiedExec(
+    await runTool(
       `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"skin"`,
     )
 
@@ -328,10 +406,7 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
  * @returns {Promise<void>} when the operation is finished.
  */
 export async function disableSkin(championId?: number): Promise<void> {
-  if (runningProcess) {
-    runningProcess.kill()
-    runningProcess = null
-  }
+  await stopOverlay()
   await setCurrentSkinId('')
 
   // 检查多英雄皮肤开关
@@ -342,8 +417,10 @@ export async function disableSkin(championId?: number): Promise<void> {
 
     // Remove this champion's mod directory
     const skinsDirDestination = path.join(TEMP_DIR, 'skins')
+    // 清理单英雄模式遗留的 mod 目录，避免 mkoverlay 重建时冲突
+    await fs.remove(path.join(skinsDirDestination, 'skin'))
     const modDir = path.join(skinsDirDestination, `champion_${championId}`)
-    await fs.remove(modDir)
+    await removeWithRetry(modDir)
 
     // Rebuild overlay with remaining mods, or stop completely if none left
     const entries = await fs.readdir(skinsDirDestination, { withFileTypes: true }).catch(() => [])
@@ -353,7 +430,7 @@ export async function disableSkin(championId?: number): Promise<void> {
       const gamePath = path.join(await getLeaguePath(), 'Game')
       const overlayDirDestination = path.join(TEMP_DIR, 'overlay')
       const modsArg = modNames.join('/')
-      await promisifiedExec(
+      await runTool(
         `${CSLOL_MANAGER_EXECUTABLE} mkoverlay "${skinsDirDestination}" "${overlayDirDestination}" --game:"${gamePath}" --mods:"${modsArg}"`,
       )
       runningProcess = spawn(
@@ -454,13 +531,10 @@ export async function getChampionSkinsDetail(): Promise<ChampionSkinEntry[]> {
  * 一键清除所有已记住的英雄皮肤映射，并停止当前 overlay，清理临时目录。
  */
 export async function clearAllSkins(): Promise<void> {
-  if (runningProcess) {
-    runningProcess.kill()
-    runningProcess = null
-  }
+  await stopOverlay()
   await setCurrentSkinId('')
   await clearAllChampionSkins()
   // 清理临时目录中的皮肤文件
-  await fs.remove(TEMP_DIR)
+  await removeWithRetry(TEMP_DIR)
 }
 
