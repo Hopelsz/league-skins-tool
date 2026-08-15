@@ -10,7 +10,7 @@ export default function SkinFloatWindow(): JSX.Element {
   const [isApplying, setIsApplying] = useState(false)
   const [applyingId, setApplyingId] = useState<string | null>(null)  // 正在应用中的皮肤ID
   const [dataLoading, setDataLoading] = useState(false)  // 初次加载皮肤数据
-  const [position, setPosition] = useState<FloatWindowPosition>('right')
+  const [position, setPosition] = useState<FloatWindowPosition>('top')
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAnimRef = useRef<number | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)

@@ -24,7 +24,7 @@ export default function App(): JSX.Element {
   const [importSuccess, setImportSuccess] = useState(false)
   const [changePathSuccess, setChangePathSuccess] = useState(false)
   const [floatWindowEnabled, setFloatWindowEnabled] = useState(true)
-  const [floatWindowPosition, setFloatWindowPosition] = useState<FloatWindowPosition>('right')
+  const [floatWindowPosition, setFloatWindowPosition] = useState<FloatWindowPosition>('top')
   const [multiChampionSkinEnabled, setMultiChampionSkinEnabled] = useState(true)
   const [closeBehaviorValue, setCloseBehaviorValue] = useState<CloseBehavior>('ask')
   const [settingsTab, setSettingsTab] = useState('game')

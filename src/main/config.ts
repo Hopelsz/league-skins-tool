@@ -262,7 +262,7 @@ export type FloatWindowPosition = 'right' | 'left' | 'top' | 'bottom'
 export async function getFloatWindowPosition(): Promise<FloatWindowPosition> {
   const val = await getConfigValue('floatWindowPosition')
   if (val === 'left' || val === 'top' || val === 'bottom') return val
-  return 'right'
+  return 'top'
 }
 
 export async function setFloatWindowPosition(position: FloatWindowPosition): Promise<void> {
