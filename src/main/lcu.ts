@@ -290,8 +290,22 @@ async function getChampionMap(): Promise<Map<number, Champion>> {
     const champions = await listChampions()
     championMap = new Map(champions.map((c) => [c.id, c]))
     console.log(`${TAG} 加载 ${championMap.size} 个英雄数据`)
+    // 元数据尚未就绪（空结果）时不缓存，下一轮轮询重试；
+    // 否则空表会被永久缓存，元数据就绪后悬浮窗也永远无法弹出
+    if (championMap.size === 0) {
+      championMap = null
+      return new Map()
+    }
   }
   return championMap
+}
+
+/**
+ * 清除英雄查找表缓存。
+ * 元数据刷新/导入皮肤路径后调用，避免 LCU 使用过期或空的英雄数据。
+ */
+export function invalidateChampionMap(): void {
+  championMap = null
 }
 
 /** 通过 championId 查找 Champion 对象 */

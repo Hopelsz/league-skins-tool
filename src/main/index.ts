@@ -268,31 +268,36 @@ function createFloatWindow(): BrowserWindow {
 
 /** 显示悬浮窗并发送英雄数据（窗口不存在则先创建） */
 function showFloatWindow(champion: Champion): void {
-  if (floatWindow && !floatWindow.isDestroyed()) {
-    // 更新位置
-    computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
-    floatWindow.show()
-    floatWindow.focus()
-  } else {
-    floatWindow = createFloatWindow()
-    floatWindow.once('ready-to-show', () => {
-      if (floatWindow) {
-        computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
-        floatWindow.show()
-        // 发送英雄数据到浮动窗口
-        floatWindow.webContents.send('float-champion-data', champion)
-      }
-    })
-    // 如果已经 ready 了（极快加载的情况）
-    floatWindow.webContents.on('did-finish-load', () => {
-      if (floatWindow) {
-        floatWindow.webContents.send('float-champion-data', champion)
-      }
-    })
-    return
+  try {
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      // 更新位置
+      computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
+      floatWindow.show()
+      floatWindow.focus()
+    } else {
+      floatWindow = createFloatWindow()
+      floatWindow.once('ready-to-show', () => {
+        if (floatWindow) {
+          computeFloatWindowBounds().then((bounds) => floatWindow?.setBounds(bounds))
+          floatWindow.show()
+          // 发送英雄数据到浮动窗口
+          floatWindow.webContents.send('float-champion-data', champion)
+        }
+      })
+      // 如果已经 ready 了（极快加载的情况）
+      floatWindow.webContents.on('did-finish-load', () => {
+        if (floatWindow) {
+          floatWindow.webContents.send('float-champion-data', champion)
+        }
+      })
+      return
+    }
+    // 窗口已存在，直接发送数据
+    floatWindow.webContents.send('float-champion-data', champion)
+  } catch (err) {
+    // 低内存/系统资源紧张时窗口创建或显示可能失败，记录日志避免静默消失
+    console.error('[Float] 悬浮窗创建/显示失败:', err)
   }
-  // 窗口已存在，直接发送数据
-  floatWindow.webContents.send('float-champion-data', champion)
 }
 
 /**

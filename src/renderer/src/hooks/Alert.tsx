@@ -1,9 +1,15 @@
 import { createContext, useContext } from 'react'
 
-export const AlertContext = createContext<{ setAlert: (message: string) => void }>({
+export type AlertType = 'success' | 'error' | 'cancel'
+
+export const AlertContext = createContext<{
+  setAlert: (message: string, type?: AlertType) => void
+}>({
   setAlert: () => {}
 })
 
-export function useAlert(): { setAlert: (message: string) => void } {
+export function useAlert(): {
+  setAlert: (message: string, type?: AlertType) => void
+} {
   return useContext(AlertContext)
 }

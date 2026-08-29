@@ -118,7 +118,8 @@ async function getChampionDirNames(): Promise<Map<string, string[]>> {
       map.set(alias, names)
     }
   }
-  championDirCache = map
+  // 元数据尚未就绪（空结果）时不缓存，否则后续元数据就绪后仍找不到皮肤文件
+  championDirCache = map.size > 0 ? map : null
   return map
 }
 

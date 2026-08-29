@@ -95,7 +95,7 @@ export default function ChampionSelector({
       setChampionSkinsDetail([])
       setAlert('已清除所有皮肤记忆')
     } catch (err) {
-      setAlert(`清除失败: ${err instanceof Error ? err.message : '未知错误'}`)
+      setAlert(`清除失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error')
     } finally {
       setClearLoading(false)
     }
@@ -307,7 +307,7 @@ export default function ChampionSelector({
                                   )
                                   setAlert(`已移除 ${entry.championName} 的皮肤记忆`)
                                 } catch (err) {
-                                  setAlert(`移除失败: ${err instanceof Error ? err.message : '未知错误'}`)
+                                  setAlert(`移除失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error')
                                 }
                               }}
                             >

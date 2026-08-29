@@ -1,5 +1,8 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Loader from '@renderer/components/Loader'
+
+/** 单个 URL 加载超时：弱网/CDN 不可达时快速跳到下一个地址，避免请求长期挂起占用渲染进程内存 */
+const IMAGE_TIMEOUT_MS = 8000
 
 export default function ImageLoader({
   src,
@@ -40,6 +43,13 @@ export default function ImageLoader({
       setError(true)
     }
   }, [currentIdx, urls.length])
+
+  // 每个 URL 设置超时：onLoad/onError 都没触发时强制进入下一个
+  useEffect(() => {
+    if (resolvedRef.current || !loading || error) return
+    const timer = setTimeout(handleError, IMAGE_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [currentIdx, loading, error, handleError])
 
   return (
     <div

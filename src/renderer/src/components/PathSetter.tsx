@@ -15,7 +15,7 @@ export default function PathSetter({ ready, loading = false }: { ready: () => vo
   const selectFolder = async (): Promise<void> => {
     const success = await window.api.askAndSetLeaguePath()
     if (success) ready()
-    else setAlert('路径无效，请选择 League of Legends.exe 文件')
+    else setAlert('路径无效，请选择 League of Legends.exe 文件', 'error')
   }
 
   return (

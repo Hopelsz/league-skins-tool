@@ -13,6 +13,8 @@ import { CONFIG_PATH } from './constants'
 const DEFAULT_CONFIG = {
   leaguePath: '',
   skinsPath: '',
+  /** 本地皮肤是否可用：仅导入成功或下载完成时为 true（B 方案：选错路径即清空皮肤列表） */
+  skinsAvailable: false,
   currentSkinId: null as string | null,
   championSkins: {} as Record<string, string>
 }
@@ -54,12 +56,13 @@ async function readConfig(): Promise<Record<string, unknown>> {
 /**
  * This function gets a value from the config file.
  * @param key the key to get the value of.
- * @returns {Promise<string>} the value of the key.
+ * @returns {Promise<string | boolean | null>} the value of the key.
  */
-export async function getConfigValue(key: string): Promise<string> {
+export async function getConfigValue(key: string): Promise<string | boolean | null> {
   const config = await readConfig()
   const val = config[key]
-  return typeof val === 'string' ? val : ''
+  if (typeof val === 'string' || typeof val === 'boolean') return val
+  return null
 }
 
 /**
@@ -67,7 +70,7 @@ export async function getConfigValue(key: string): Promise<string> {
  * @param key the key to set the value of.
  * @param value the value to set.
  */
-export async function setConfigValue(key: string, value: string): Promise<void> {
+export async function setConfigValue(key: string, value: string | boolean): Promise<void> {
   const config = await readConfig()
   config[key] = value
   // 同步更新缓存
@@ -114,7 +117,11 @@ export async function isLeaguePathValid(leaguePath: string): Promise<boolean> {
  * @returns {Promise<boolean>} true if the league path was set, false otherwise.
  */
 export async function setLeaguePath(leaguePath: string): Promise<boolean> {
-  if (!(await isLeaguePathValid(leaguePath))) return false
+  if (!(await isLeaguePathValid(leaguePath))) {
+    // 选错也记录用户实际选的路径，便于排错时确认是否配错
+    await setConfigValue('leaguePath', leaguePath)
+    return false
+  }
   const finalPath = await normalizeLeaguePath(leaguePath)
   await setConfigValue('leaguePath', finalPath)
   return true
@@ -136,7 +143,11 @@ export async function askAndSetLeaguePath(): Promise<boolean> {
 
   const filePath = result.filePaths[0]
   const isValid = await isLeaguePathValid(filePath)
-  if (!isValid) return false
+  if (!isValid) {
+    // 选错也记录用户实际选的路径，便于排错时确认是否配错（无效路径不影响 LCU 自动探测）
+    await setConfigValue('leaguePath', filePath)
+    return false
+  }
 
   const finalPath = await normalizeLeaguePath(filePath)
   await setConfigValue('leaguePath', finalPath)
@@ -166,7 +177,8 @@ async function normalizeLeaguePath(leaguePath: string): Promise<string> {
  * @returns {Promise<string>} the league path.
  */
 export async function getLeaguePath(): Promise<string> {
-  return getConfigValue('leaguePath')
+  const val = await getConfigValue('leaguePath')
+  return typeof val === 'string' ? val : ''
 }
 
 /**
@@ -178,7 +190,8 @@ export async function isCurrentLeaguePathValid(): Promise<boolean> {
 }
 
 export async function getCurrentSkinId(): Promise<string | null> {
-  return getConfigValue('currentSkinId')
+  const val = await getConfigValue('currentSkinId')
+  return typeof val === 'string' ? val : null
 }
 
 export async function setCurrentSkinId(skinId: string | null): Promise<void> {

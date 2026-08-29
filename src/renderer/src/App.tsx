@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { Champion, CloseBehavior, FloatWindowPosition } from './types'
-import Providers from '@renderer/components/providers/Main'
 import WelcomePage from '@renderer/components/WelcomePage'
 import PathSetter from '@renderer/components/PathSetter'
 import ChampionSelector from '@renderer/components/ChampionSelector'
@@ -36,13 +35,9 @@ export default function App(): JSX.Element {
     window.location.hash === '#float' ||
     new URLSearchParams(window.location.search).get('float') === 'true'
 
-  // 浮动窗口模式：只渲染 SkinFloatWindow
+  // 浮动窗口模式：只渲染 SkinFloatWindow（Providers 已在 main.tsx 挂载）
   if (isFloatWindow) {
-    return (
-      <Providers>
-        <SkinFloatWindow />
-      </Providers>
-    )
+    return <SkinFloatWindow />
   }
 
   // 启动时自动检测：路径已配置则直接进主界面，否则显示欢迎页
@@ -91,6 +86,12 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (showSettings) {
       window.api.getCloseBehavior().then(setCloseBehaviorValue)
+      // 恢复"使用本地 skins"的完成状态：须导入成功（skinsAvailable=true）才打钩
+      skinsCheckSeq.current += 1
+      const checkSeq = skinsCheckSeq.current
+      window.api.checkLolSkinsExist().then((ok) => {
+        if (skinsCheckSeq.current === checkSeq) setImportSuccess(ok)
+      })
     }
   }, [showSettings])
 
@@ -112,6 +113,10 @@ export default function App(): JSX.Element {
 
   const [loadingMetadata, setLoadingMetadata] = useState(false)
 
+  // 打钩状态检查的序号：导入失败时自增作废在途的 checkLolSkinsExist 回调，
+  // 防止"打开设置面板时的旧检查结果"把打钩状态覆盖回 true（B 方案防竞态）
+  const skinsCheckSeq = useRef(0)
+
   const handlePathReady = async (): Promise<void> => {
     // 路径设置完成后加载皮肤数据（不强制网络下载，优先使用本地缓存）
     setLoadingMetadata(true)
@@ -131,7 +136,7 @@ export default function App(): JSX.Element {
     if (success) {
       setChangePathSuccess(true)
     } else if (success === false) {
-      setAlert('路径无效或更改失败')
+      setAlert('路径无效或更改失败', 'error')
     }
   }
 
@@ -144,8 +149,14 @@ export default function App(): JSX.Element {
         await window.api.useLocalLolSkins(localPath)
         setRefreshTrigger((prev) => prev + 1)
         setImportSuccess(true)
+        setAlert(`本地皮肤导入成功：${localPath}`)
       } catch (error) {
-        setAlert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`)
+        // B 方案：导入失败即清空皮肤列表（主进程 getExistingSkins 返回空）
+        setRefreshTrigger((prev) => prev + 1)
+        // 作废打开设置面板时可能仍在途的 checkLolSkinsExist 回调，避免打钩被旧结果覆盖回 true
+        skinsCheckSeq.current += 1
+        setImportSuccess(false)
+        setAlert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
       } finally {
         setImportingSkins(false)
       }
@@ -158,7 +169,7 @@ export default function App(): JSX.Element {
       setRefreshTrigger((prev) => prev + 1)
       setAlert('皮肤列表刷新成功！')
     } catch (error) {
-      setAlert(`刷新失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      setAlert(`刷新失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
     }
   }
 
@@ -213,7 +224,7 @@ export default function App(): JSX.Element {
       ) : settingPath ? (
         <PathSetter ready={handlePathReady} loading={loadingMetadata} />
       ) : (
-        <Providers>
+        <>
           {/* 设置面板 */}
           <OffCanvas
             active={showSettings}
@@ -395,7 +406,7 @@ export default function App(): JSX.Element {
               <SkinSelector champion={selectedChampion} setChampion={setSelectedChampion} refreshTrigger={refreshTrigger} />
             </div>
           </div>
-        </Providers>
+        </>
       )}
     </>
   )

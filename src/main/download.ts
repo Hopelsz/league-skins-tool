@@ -74,7 +74,7 @@ function isDownloadCancelled(): boolean {
  */
 export async function getSkinsLocation(): Promise<string> {
   const customPath = await getConfigValue('skinsPath')
-  return customPath || LOL_SKINS_LOCATION
+  return typeof customPath === 'string' && customPath ? customPath : LOL_SKINS_LOCATION
 }
 
 async function downloadUrlWithRetry(url: string, redirectCount: number = 0, retryCount: number = 0): Promise<Buffer> {
@@ -204,7 +204,9 @@ async function locationExists(location: string): Promise<boolean> {
  */
 export async function checkLolSkinsExist(): Promise<boolean> {
   const skinsLocation = await getSkinsLocation()
-  return locationExists(skinsLocation)
+  // B 方案：须先导入成功（skinsAvailable=true），且目录真实包含皮肤文件才打钩
+  if (!(await getConfigValue('skinsAvailable'))) return false
+  return hasSkinFiles(skinsLocation)
 }
 
 /**
@@ -230,32 +232,43 @@ function extractChromaId(filename: string): number | null {
 }
 
 /**
- * This function downloads the LOL-SKINS metadata file into user data.
- * @param force whether it should ignore existing files and download new ones.
- * @returns {Promise<void>} when the operation is finished.
+ * 确保元数据文件可用（本地优先，离线兜底）。
+ * 单机化设计：网络只用于手动刷新时的数据更新，不参与关键路径。
+ * - 本地文件已存在 → 直接使用，不联网
+ * - 本地文件缺失 → 立即复制内置兜底数据（零网络等待），保证离线可用
+ * - 仅 force=true（手动刷新）才尝试网络更新；失败静默降级，返回 false
+ * @param force 是否强制联网更新
+ * @returns 元数据是否可用（force 模式下表示网络更新是否成功）
  */
-export async function downloadLolSkinsMetadata(force: boolean = false): Promise<void> {
+export async function downloadLolSkinsMetadata(force: boolean = false): Promise<boolean> {
   return metadataMutex.runExclusive(async () => {
-    if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return
+    // 本地文件已存在且不强制更新 → 直接用，不联网
+    if (!force && (await locationExists(LOL_SKINS_METADATA_LOCATION))) return true
 
+    // 本地文件缺失 → 先用内置兜底数据（零网络等待，保证离线可用）
+    if (!(await locationExists(LOL_SKINS_METADATA_LOCATION))) {
+      try {
+        if (await locationExists(LOL_SKINS_METADATA_FALLBACK)) {
+          await fs.copyFile(LOL_SKINS_METADATA_FALLBACK, LOL_SKINS_METADATA_LOCATION)
+          console.log('已从内置资源复制元数据（离线兜底）')
+        }
+      } catch (copyErr) {
+        console.warn('复制内置元数据失败:', copyErr)
+      }
+    }
+
+    // 非强制模式：本地兜底数据已就绪，不再联网，避免弱网卡启动
+    if (!force) return true
+
+    // 强制模式（手动刷新）：尝试网络更新，失败静默降级为本地数据
     try {
       const buffer = await downloadUrlWithRetry(LOL_SKINS_METADATA_URL)
       await fs.writeFile(LOL_SKINS_METADATA_LOCATION, buffer)
+      console.log('元数据网络更新成功')
+      return true
     } catch (networkErr) {
-      console.warn('元数据网络下载失败，尝试使用内置兜底数据:', networkErr)
-      // 回退到内置的元数据文件
-      try {
-        const fallbackExists = await locationExists(LOL_SKINS_METADATA_FALLBACK)
-        if (fallbackExists) {
-          await fs.copyFile(LOL_SKINS_METADATA_FALLBACK, LOL_SKINS_METADATA_LOCATION)
-          console.log('已从内置资源复制元数据')
-        } else {
-          // 兜底文件也不存在，抛出原错误
-          throw networkErr
-        }
-      } catch (fallbackErr) {
-        throw networkErr instanceof Error ? networkErr : new Error(String(networkErr))
-      }
+      console.warn('元数据网络更新失败，继续使用本地数据:', networkErr)
+      return false
     }
   })
 }
@@ -357,7 +370,11 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
     // 下载时清除自定义路径配置，使用默认位置
     await setConfigValue('skinsPath', '')
     
-    if (!force && (await locationExists(LOL_SKINS_LOCATION))) return
+    // 皮肤目录已存在且不强制重新下载 → 直接用现有皮肤
+    if (!force && (await locationExists(LOL_SKINS_LOCATION))) {
+      await setConfigValue('skinsAvailable', true)
+      return
+    }
 
     if (await locationExists(LOL_SKINS_LOCATION)) await fs.remove(LOL_SKINS_LOCATION)
 
@@ -377,7 +394,67 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
     
     await decompressZip(buffer, LOL_SKINS_DESTINATION)
     await organizeLolSkinsStructure()
+    await setConfigValue('skinsAvailable', true)
   })
+}
+
+/**
+ * 轻量结构校验：目录存在且至少含一个符合 LOL-SKINS 结构的皮肤文件。
+ * 标准结构：<skins>/<英雄目录>/<皮肤文件(.fantome/.zip)>，或顶层平铺的 .fantome 文件。
+ * 注意：顶层 .zip 不算数——普通文件夹也常含任意压缩包，仅凭 zip 会把"选错的文件夹"误判为有效。
+ */
+async function hasSkinFiles(skinsPath: string): Promise<boolean> {
+  try {
+    if (!(await locationExists(skinsPath))) return false
+    const entries = await fs.readdir(skinsPath, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const files = await fs.readdir(path.join(skinsPath, entry.name))
+        if (files.some((f) => /\.(fantome|zip)$/i.test(f))) return true
+      }
+      // 顶层平铺的 .fantome（LOL-SKINS 专用格式，普通文件夹中不会出现）
+      if (entry.isFile() && /\.fantome$/i.test(entry.name)) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 校验本地皮肤目录是否有效：须包含符合 LOL-SKINS 结构的皮肤文件，
+ * 且元数据可用时，一级子目录名还须匹配英雄名（含别名），进一步避免误判。
+ */
+async function validateSkinsPath(skinsPath: string): Promise<boolean> {
+  try {
+    if (!(await hasSkinFiles(skinsPath))) return false
+
+    // 元数据就绪时用英雄名校验目录名；未就绪/离线时降级为纯结构校验
+    const championNames = new Set<string>()
+    try {
+      for (const c of await listChampions()) {
+        championNames.add(c.name)
+        for (const alias of c.aliases ?? []) championNames.add(alias)
+      }
+    } catch {
+      // 元数据不可用，结构校验已通过即可
+      return true
+    }
+
+    const entries = await fs.readdir(skinsPath, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const files = await fs.readdir(path.join(skinsPath, entry.name))
+        if (!files.some((f) => /\.(fantome|zip)$/i.test(f))) continue
+        if (championNames.has(entry.name)) return true
+      }
+      // 顶层平铺的 .fantome（LOL-SKINS 专用格式，普通文件夹中不会出现）
+      if (entry.isFile() && /\.fantome$/i.test(entry.name)) return true
+    }
+    return false
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -387,9 +464,21 @@ export async function downloadLolSkins(force: boolean = false): Promise<void> {
  * @returns {Promise<void>} when the operation is finished.
  */
 export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
+  // 校验路径有效性：必须包含皮肤文件，否则"打钩成功但实际无效"
+  if (!(await validateSkinsPath(localSkinsPath))) {
+    // B 方案：选错路径 = 强制清空皮肤列表，须重新导入成功才能看到皮肤
+    // 注意：选错的路径也写入 config，方便排错时确认用户实际选的目录
+    await setConfigValue('skinsPath', localSkinsPath)
+    await setConfigValue('skinsAvailable', false)
+    throw new Error(
+      '所选文件夹中未找到皮肤文件（.fantome / .zip），请确认选择的是 skins 目录。' +
+        '当前皮肤列表已清空，导入成功后即可重新使用本地皮肤'
+    )
+  }
   // 保存用户选择的皮肤路径到配置
   await setConfigValue('skinsPath', localSkinsPath)
-  
+  await setConfigValue('skinsAvailable', true)
+
   // 如果有本地元数据缓存就用，没有才下载；不强制重新下载避免网络卡住
   await downloadLolSkinsMetadata(false)
 }
@@ -499,6 +588,14 @@ async function getExtraSkins(
 
 export async function getExistingSkins(): Promise<Skin[]> {
   const skinsLocation = await getSkinsLocation()
+
+  // B 方案：仅导入成功或下载完成（skinsAvailable=true）时才扫描皮肤，
+  // 否则一律返回空列表，强制"导入成功才能看到皮肤"
+  if (!(await getConfigValue('skinsAvailable'))) {
+    cachedExistingSkins = []
+    cachedExistingSkinsLocation = skinsLocation
+    return []
+  }
 
   // 如果路径和缓存都有效，直接返回缓存结果
   if (cachedExistingSkins && cachedExistingSkinsLocation === skinsLocation) {

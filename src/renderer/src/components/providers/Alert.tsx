@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 
-import { AlertContext } from '@renderer/hooks/Alert'
+import { AlertContext, type AlertType } from '@renderer/hooks/Alert'
 
 export default function Alert({ children }: { children: React.ReactNode }): JSX.Element {
-  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'cancel' } | null>(null)
+  const [alert, setAlert] = useState<{ message: string; type: AlertType } | null>(null)
 
   useEffect(() => {
     if (alert) {
@@ -16,9 +16,16 @@ export default function Alert({ children }: { children: React.ReactNode }): JSX.
     return undefined
   }, [alert])
 
-  const handleSetAlert = (message: string): void => {
-    const isCancel = message.includes('取消')
-    setAlert({ message, type: isCancel ? 'cancel' : 'success' })
+  const detectAlertType = (message: string): AlertType => {
+    if (message.includes('取消')) return 'cancel'
+    if (message.includes('失败') || message.includes('错误') || message.includes('无效')) {
+      return 'error'
+    }
+    return 'success'
+  }
+
+  const handleSetAlert = (message: string, type?: AlertType): void => {
+    setAlert({ message, type: type ?? detectAlertType(message) })
   }
 
   return (

@@ -11,6 +11,7 @@ import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, 
 import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions, invalidateMetadataCache } from './metadata'
+import { invalidateChampionMap } from './lcu'
 
 ipcMain.handle('isCurrentLeaguePathValid', isCurrentLeaguePathValid)
 ipcMain.handle('askAndSetLeaguePath', askAndSetLeaguePath)
@@ -18,12 +19,14 @@ ipcMain.handle('askAndSelectLocalSkins', askAndSelectLocalSkins)
 ipcMain.handle('downloadLolSkins', async (_, force: boolean) => {
   await downloadLolSkins(force)
   invalidateMetadataCache()
+  invalidateChampionMap()
 })
 ipcMain.handle('cancelDownloadLolSkins', () => cancelDownloadLolSkins())
 ipcMain.handle('useLocalLolSkins', async (_, localPath: string) => {
   await useLocalLolSkins(localPath)
   invalidateMetadataCache()
   invalidateExistingSkinsCache()
+  invalidateChampionMap()
 })
 ipcMain.handle('checkLolSkinsExist', checkLolSkinsExist)
 ipcMain.handle('listSkins', listSkins)
@@ -61,14 +64,18 @@ ipcMain.handle('setFloatWindowPosition', async (_, position: FloatWindowPosition
 ipcMain.handle('getMultiChampionSkinEnabled', getMultiChampionSkinEnabled)
 ipcMain.handle('setMultiChampionSkinEnabled', (_, enabled: boolean) => setMultiChampionSkinEnabled(enabled))
 ipcMain.handle('refreshLolSkins', async (_, forceMetadata = false) => {
-  // 仅手动刷新（force=true）时才强制从网络下载元数据
-  // 首次加载或自动刷新时使用已有缓存，大幅提升启动速度
-  // downloadLolSkinsMetadata 内部已有 metadataMutex 保护并发写入
-  await downloadLolSkinsMetadata(forceMetadata)
-  // 清除元数据缓存和皮肤文件缓存，下次调用会重新扫描
+  // 自动/首次加载：离线优先，直接用本地或内置兜底数据，零网络等待
+  // 手动刷新（forceMetadata=true）：联网更新元数据，失败静默降级为本地数据
+  const updated = await downloadLolSkinsMetadata(forceMetadata)
+  // 清除元数据缓存、皮肤文件缓存和 LCU 英雄表缓存，下次调用会重新扫描
   invalidateMetadataCache()
   invalidateExistingSkinsCache()
+  invalidateChampionMap()
   const skins = await getExistingSkins()
+  // 手动刷新且网络更新失败时提示（自动刷新静默使用本地数据）
+  if (forceMetadata && !updated) {
+    throw new Error('网络更新失败，已使用本地数据，可稍后重试')
+  }
   return skins
 })
 ipcMain.handle('getAppVersion', () => app.getVersion())

@@ -83,11 +83,18 @@ export default function SkinSelector({ champion, setChampion, refreshTrigger = 0
   useEffect(() => {
     ;(async (): Promise<void> => {
       setIsLoadingData(true)
-      const skins = await window.api.refreshLolSkins()
-      setAllSkins(skins)
-      const skinId = await window.api.getCurrentSkinId()
-      setCurrentSkinId(skinId)
-      setIsLoadingData(false)
+      try {
+        const skins = await window.api.refreshLolSkins()
+        setAllSkins(skins)
+        const skinId = await window.api.getCurrentSkinId()
+        setCurrentSkinId(skinId)
+      } catch (error) {
+        // 加载失败时结束加载态并提示，避免界面永远停留在"加载中"
+        console.error('加载皮肤列表失败:', error)
+        setAlert(`加载皮肤列表失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
+      } finally {
+        setIsLoadingData(false)
+      }
     })()
   }, [refreshTrigger])
 
