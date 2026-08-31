@@ -24,8 +24,19 @@ export default function Alert({ children }: { children: React.ReactNode }): JSX.
     return 'success'
   }
 
+  // 清洗 toast 消息：Electron IPC 失败时 error.message 会带上
+  // `Error invoking remote method '方法名': Error: ` 前缀，对普通用户无意义，统一剥离
+  // 注意：消息可能以"导入失败: "等操作前缀开头，因此不能锚定行首
+  const cleanAlertMessage = (message: string): string => {
+    const cleaned = message
+      .replace(/Error invoking remote method '[^']*':\s*(?:Error:\s*)?/gi, '')
+      .trim()
+    return cleaned || '操作失败，请重试'
+  }
+
   const handleSetAlert = (message: string, type?: AlertType): void => {
-    setAlert({ message, type: type ?? detectAlertType(message) })
+    const cleaned = cleanAlertMessage(message)
+    setAlert({ message: cleaned, type: type ?? detectAlertType(cleaned) })
   }
 
   return (

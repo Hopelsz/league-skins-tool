@@ -471,8 +471,7 @@ export async function useLocalLolSkins(localSkinsPath: string): Promise<void> {
     await setConfigValue('skinsPath', localSkinsPath)
     await setConfigValue('skinsAvailable', false)
     throw new Error(
-      '所选文件夹中未找到皮肤文件（.fantome / .zip），请确认选择的是 skins 目录。' +
-        '当前皮肤列表已清空，导入成功后即可重新使用本地皮肤'
+      '所选文件夹中未找到皮肤文件（.fantome / .zip），请确认选择的是 skins 目录。'
     )
   }
   // 保存用户选择的皮肤路径到配置
