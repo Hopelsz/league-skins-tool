@@ -9,7 +9,6 @@ import https from 'https'
 import fs from 'fs'
 import path from 'path'
 import { exec, type ExecException } from 'child_process'
-import { BrowserWindow } from 'electron'
 import { getLeaguePath, getFloatWindowEnabled } from './config'
 import { CONFIG_PATH } from './constants'
 import { listChampions, type Champion } from './metadata'
@@ -74,6 +73,23 @@ let credentials: LcuCredentials | null = null
 let championMap: Map<number, Champion> | null = null
 let connectionVerified = false
 let lastFoundLeaguePath: string | null = null
+
+// 英雄选中 / 选人结束回调：由主进程注入（悬浮窗弹出/收起不再依赖渲染窗口）
+let championSelectedHandler: ((champion: Champion) => void) | null = null
+let champSelectEndedHandler: (() => void) | null = null
+
+/**
+ * 注册 LCU 事件处理器（主进程在启动时注入）。
+ * - championSelected：检测到本地玩家选定英雄时调用（弹出悬浮窗）
+ * - champSelectEnded：离开选人/进入游戏时调用（收起悬浮窗）
+ */
+export function setLcuHandlers(handlers: {
+  onChampionSelected: (champion: Champion) => void
+  onChampSelectEnded: () => void
+}): void {
+  championSelectedHandler = handlers.onChampionSelected
+  champSelectEndedHandler = handlers.onChampSelectEnded
+}
 
 // 进程扫描限流：避免 execSync 频繁阻塞主线程
 let lastProcessScanTime = 0
@@ -314,13 +330,18 @@ async function findChampion(championId: number): Promise<Champion | null> {
   return map.get(championId) ?? null
 }
 
-/** 向所有窗口广播 LCU 事件 */
-function broadcastToAllWindows(channel: string, ...args: unknown[]): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    if (!win.isDestroyed()) {
-      win.webContents.send(channel, ...args)
-    }
-  })
+/** 触发英雄选中事件（悬浮窗弹出），无处理器时仅记录日志 */
+function emitChampionSelected(champion: Champion): void {
+  if (championSelectedHandler) {
+    championSelectedHandler(champion)
+  } else {
+    console.warn(`${TAG} ⚠️ 未注册 championSelected 处理器，忽略英雄: ${champion.name}`)
+  }
+}
+
+/** 触发选人结束事件（悬浮窗收起） */
+function emitChampSelectEnded(): void {
+  if (champSelectEndedHandler) champSelectEndedHandler()
 }
 
 // ======================== 核心轮询逻辑 ========================
@@ -432,7 +453,7 @@ async function tryPushChampion(championId: number, source: string): Promise<void
   }
 
   console.log(`${TAG} ✅ 英雄匹配: ${champion.name} (id=${champion.id})，弹出悬浮窗`)
-  broadcastToAllWindows('lcu-champion-selected', champion)
+  emitChampionSelected(champion)
 }
 
 /** 轮询游戏流程状态 */
@@ -456,14 +477,14 @@ async function pollGameflow(): Promise<void> {
   if (phase === 'InProgress' && lastPhase !== 'InProgress') {
     console.log(`${TAG} 🎮 进入游戏，隐藏悬浮窗`)
     lastSelectedChampionId = null
-    broadcastToAllWindows('lcu-champ-select-ended')
+    emitChampSelectEnded()
   }
 
   // 从选人阶段退回到大厅（秒退等）→ 也关闭悬浮窗
   if (lastPhase === 'ChampSelect' && phase === 'Lobby') {
     console.log(`${TAG} 🔙 选人取消，隐藏悬浮窗`)
     lastSelectedChampionId = null
-    broadcastToAllWindows('lcu-champ-select-ended')
+    emitChampSelectEnded()
   }
 
   // 进入英雄选择阶段 - 重置状态

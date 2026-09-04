@@ -2,10 +2,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import { Champion, Skin, Chroma } from '../main/metadata'
 import { type FloatWindowPosition } from '../main/config'
+import { type ConfigPaths } from '../main/api'
 
 const api = {
+  // 配置向导
+  getConfigPaths: (): Promise<ConfigPaths> => ipcRenderer.invoke('getConfigPaths'),
+  openSetupWindow: (): void => ipcRenderer.send('open-setup-window'),
   isCurrentLeaguePathValid: (): Promise<boolean> => ipcRenderer.invoke('isCurrentLeaguePathValid'),
-  askAndSetLeaguePath: (): Promise<boolean> => ipcRenderer.invoke('askAndSetLeaguePath'),
+  askAndSetLeaguePath: (): Promise<boolean | null> => ipcRenderer.invoke('askAndSetLeaguePath'),
   askAndSelectLocalSkins: (): Promise<string | null> =>
     ipcRenderer.invoke('askAndSelectLocalSkins'),
   downloadCsLolManager: (): Promise<void> => ipcRenderer.invoke('downloadCsLolManager'),

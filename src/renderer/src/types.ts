@@ -35,9 +35,20 @@ export type CloseBehavior = 'ask' | 'tray' | 'quit'
 
 export type FloatWindowPosition = 'right' | 'left' | 'top' | 'bottom'
 
+export interface ConfigPaths {
+  leaguePath: string
+  skinsPath: string
+  skinsAvailable: boolean
+  skinsLocation: string
+  leaguePathValid: boolean
+}
+
 export interface Api {
+  // 配置向导
+  getConfigPaths: () => Promise<ConfigPaths>
+  openSetupWindow: () => void
   isCurrentLeaguePathValid: () => Promise<boolean>
-  askAndSetLeaguePath: () => Promise<boolean>
+  askAndSetLeaguePath: () => Promise<boolean | null>
   askAndSelectLocalSkins: () => Promise<string | null>
   downloadLolSkins: (force?: boolean) => Promise<void>
   cancelDownloadLolSkins: () => Promise<void>

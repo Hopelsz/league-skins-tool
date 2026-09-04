@@ -108,7 +108,8 @@ export async function isLeaguePathValid(leaguePath: string): Promise<boolean> {
   const gameLolExists = await fs.pathExists(gameLolPath)
   const gameLcExists = await fs.pathExists(gameLcPath)
   const rootLcExists = await fs.pathExists(rootLcPath)
-  return gameLolExists || gameLcExists || rootLcExists
+  const gameDirExists = await fs.pathExists(path.join(checkPath, 'Game'))
+  return gameLolExists || gameLcExists || (rootLcExists && gameDirExists)
 }
 
 /**
@@ -127,18 +128,18 @@ export async function setLeaguePath(leaguePath: string): Promise<boolean> {
   return true
 }
 
-export async function askAndSetLeaguePath(): Promise<boolean> {
+export async function askAndSetLeaguePath(): Promise<boolean | null> {
   const { BrowserWindow } = await import('electron')
   const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
 
   let result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    title: '选择 League of Legends.exe 或 LeagueClient.exe',
+    title: '选择游戏安装根目录下的 LeagueClient.exe 或 Game/League of Legends.exe',
     filters: [{ name: 'Executable', extensions: ['exe'] }]
   })
 
   if (result.canceled || result.filePaths.length === 0) {
-    return false
+    return null
   }
 
   const filePath = result.filePaths[0]

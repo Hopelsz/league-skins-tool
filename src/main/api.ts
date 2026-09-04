@@ -7,11 +7,46 @@
 
 import { ipcMain, BrowserWindow, app } from 'electron'
 
-import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled, getFloatWindowPosition, setFloatWindowPosition, type FloatWindowPosition } from './config'
-import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache } from './download'
+import { askAndSetLeaguePath, isCurrentLeaguePathValid, askAndSelectLocalSkins, getCurrentSkinId, getChampionSkinId, getCloseBehavior, setCloseBehavior, getFloatWindowEnabled, setFloatWindowEnabled, getMultiChampionSkinEnabled, setMultiChampionSkinEnabled, getFloatWindowPosition, setFloatWindowPosition, getLeaguePath, getConfigValue, type FloatWindowPosition } from './config'
+import { downloadLolSkins, downloadLolSkinsMetadata, useLocalLolSkins, checkLolSkinsExist, getExistingSkins, cancelDownloadLolSkins, invalidateExistingSkinsCache, getSkinsLocation } from './download'
 import { setSkin, disableSkin, clearAllSkins, getChampionSkinsDetail } from './skins'
 import { type Skin, type Chroma, listSkins, listChampions, invalidateMetadataCache } from './metadata'
 import { invalidateChampionMap } from './lcu'
+
+/** 配置向导所需的当前配置快照 */
+export interface ConfigPaths {
+  leaguePath: string
+  /** 用户自定义皮肤目录（空 = 使用默认位置 skinsLocation） */
+  skinsPath: string
+  /** 皮肤目录当前是否真实可用（skinsAvailable 且磁盘含皮肤文件） */
+  skinsAvailable: boolean
+  /** 当前实际使用的皮肤目录（自定义或默认） */
+  skinsLocation: string
+  /** leaguePath 是否为有效的英雄联盟安装目录 */
+  leaguePathValid: boolean
+}
+
+ipcMain.handle('getConfigPaths', async (): Promise<ConfigPaths> => {
+  const [leaguePath, skinsPathVal, skinsLocation, leaguePathValid, skinsOk] = await Promise.all([
+    getLeaguePath(),
+    getConfigValue('skinsPath'),
+    getSkinsLocation(),
+    isCurrentLeaguePathValid(),
+    checkLolSkinsExist(),
+  ])
+  return {
+    leaguePath,
+    skinsPath: typeof skinsPathVal === 'string' ? skinsPathVal : '',
+    skinsAvailable: skinsOk,
+    skinsLocation,
+    leaguePathValid,
+  }
+})
+
+// 渲染进程（悬浮窗设置面板）请求打开配置向导窗口
+ipcMain.on('open-setup-window', () => {
+  void import('./index').then(({ openSetupWindow }) => openSetupWindow())
+})
 
 ipcMain.handle('isCurrentLeaguePathValid', isCurrentLeaguePathValid)
 ipcMain.handle('askAndSetLeaguePath', askAndSetLeaguePath)
