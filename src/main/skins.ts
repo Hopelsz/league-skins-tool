@@ -156,7 +156,7 @@ function isChroma(skin: Skin | Chroma): skin is Chroma {
  * against the target name. Only matches .zip and .fantome files.
  * @returns the full file path, or null if not found.
  */
-async function findFileInDir(dir: string, targetName: string): Promise<string | null> {
+async function findFileInDir(dir: string, targetName: string, supersetOnly = false): Promise<string | null> {
   try {
     await fs.access(dir)
   } catch {
@@ -182,8 +182,12 @@ async function findFileInDir(dir: string, targetName: string): Promise<string | 
       return path.join(dir, entry.name)
     }
 
-    // Fuzzy match: check inclusion
-    if (normalizedFileName.includes(normalizedTarget) || normalizedTarget.includes(normalizedFileName)) {
+    // Fuzzy match: check inclusion.
+    // supersetOnly 时只允许「文件名包含目标名」，目标名比文件名长（反向包含）视为不匹配，
+    // 防止「联盟不朽 阿狸 Ⅱ」误命中同目录下更短的「联盟不朽 阿狸.fantome」。
+    const fileContainsTarget = normalizedFileName.includes(normalizedTarget)
+    const targetContainsFile = normalizedTarget.includes(normalizedFileName)
+    if (fileContainsTarget || (!supersetOnly && targetContainsFile)) {
       // Score = length difference (smaller is better)
       const score = Math.abs(normalizedFileName.length - normalizedTarget.length)
       if (score < bestScore) {
@@ -257,7 +261,12 @@ async function findChromaFileById(championName: string, chromaId: number): Promi
  *     {skinName}/                   ← chroma subdirectory
  *       {chromaVariantName}.fantome ← chroma variant
  */
-async function findSkinFile(championName: string, skinName: string, isChromaSearch: boolean): Promise<string | null> {
+async function findSkinFile(
+  championName: string,
+  skinName: string,
+  isChromaSearch: boolean,
+  supersetOnly = false
+): Promise<string | null> {
   const championDir = await resolveChampionDir(championName)
   if (!championDir) return null
 
@@ -288,7 +297,7 @@ async function findSkinFile(championName: string, skinName: string, isChromaSear
     if (topMatch) return topMatch
   } else {
     // 普通皮肤：只搜索顶层文件
-    const topMatch = await findFileInDir(championDir, skinName)
+    const topMatch = await findFileInDir(championDir, skinName, supersetOnly)
     if (topMatch) return topMatch
   }
 
@@ -318,10 +327,12 @@ export async function setSkin(skin: Skin | Chroma): Promise<void> {
     skinPath = await findChromaFileById(skin.championName, skin.id)
   }
   if (!skinPath) {
+    // EXTRA 皮肤（负 id，非炫彩）必须命中与名字对应的专属文件，不允许反向模糊回退到别的文件
     skinPath = await findSkinFile(
       skin.championName,
       skin.name,
-      chroma
+      chroma,
+      !chroma && skin.id < 0
     )
   }
   

@@ -498,8 +498,12 @@ interface ExtraSkin {
   id: number
   name: string
   parentName: string
+  imageUrl?: string
 }
 
+// EXTRA_SKINS 的顺序 = 浮窗里的展示顺序：同一父皮肤下有多个 extra 时，
+// 按这里的先后依次排在其后，所以 86「联盟不朽 阿狸」必须写在 87「联盟不朽 阿狸 Ⅱ」之前。
+// name 必须与磁盘上「专属文件名」对应（见下方单向包含匹配）：没有对应 .fantome 文件时卡片不显示。
 const EXTRA_SKINS: ExtraSkin[] = [
   {
     championName: '虚空之女',
@@ -508,10 +512,26 @@ const EXTRA_SKINS: ExtraSkin[] = [
     parentName: '殿堂传奇 卡莎'
   },
   {
+    championName: '虚空之女',
+    id: 88,
+    name: '联盟不朽 卡莎 Ⅱ',
+    parentName: '殿堂传奇 卡莎',
+    // 与 71 卡同一张官方原画（至强形态无独立 DDragon splash，恐龙社图源不可达）
+    imageUrl: 'https://ddragon.leagueoflegends.com/cdn/img/champion/loading/Kaisa_71.jpg'
+  },
+  {
     championName: '九尾妖狐',
     id: 86,
     name: '联盟不朽 阿狸',
     parentName: '殿堂传奇 阿狸'
+  },
+  {
+    championName: '九尾妖狐',
+    id: 87,
+    name: '联盟不朽 阿狸 Ⅱ',
+    parentName: '殿堂传奇 阿狸',
+    // 与 86 卡同一张 DDragon 原画（默认 splash 用 id 87 会 404）
+    imageUrl: 'https://ddragon.leagueoflegends.com/cdn/img/champion/loading/Ahri_86.jpg'
   }
 ]
 
@@ -556,7 +576,9 @@ async function getExtraSkins(
       if (!file.endsWith('.fantome') && !file.endsWith('.zip')) continue
       const fileNameWithoutExt = file.replace(/\.(zip|fantome)$/, '')
       const normalizedFile = normalizeName(fileNameWithoutExt)
-      if (normalizedFile.includes(normalizedTarget) || normalizedTarget.includes(normalizedFile)) {
+      // 只认「文件名包含本 extra 名字」的匹配：名字更长的 extra（如「联盟不朽 阿狸 Ⅱ」）
+      // 不会被「联盟不朽 阿狸」这类短名文件误匹配。没有专属文件时该卡不显示。
+      if (normalizedFile.includes(normalizedTarget)) {
         found = true
         break
       }
@@ -573,7 +595,7 @@ async function getExtraSkins(
         championId: champion.id,
         championName: champion.name,
         name: extra.name,
-        image: splashUrl,
+        image: extra.imageUrl ?? splashUrl,
         imageAlt: champion.image,
         imageAlt2: champion.imageAlt,
         chromas: []
@@ -651,12 +673,19 @@ export async function getExistingSkins(): Promise<Skin[]> {
   // 将 CDragon 元数据未收录的额外皮肤插入到对应父皮肤后面
   const extraSkins = await getExtraSkins(skinsLocation, championByTitle)
   if (extraSkins.length > 0) {
+    // EXTRA_SKINS 的顺序即浮窗里的展示顺序：每个 extra 插到父皮肤之后，
+    // 同一父皮肤下有多个 extra 时，用「已插入数量」作偏移依次排列，保证互不颠倒；
+    // 父皮肤不在列表（对应文件缺失）时按序 push 到末尾，顺序同样保持。
+    const extraCountAfterParent = new Map<string, number>()
     for (const { skin, parentName } of extraSkins) {
+      const groupKey = `${skin.championId}:${parentName}`
       const insertAt = existingSkins.findIndex(
         (s) => s.championId === skin.championId && s.name === parentName
       )
       if (insertAt !== -1) {
-        existingSkins.splice(insertAt + 1, 0, skin)
+        const offset = extraCountAfterParent.get(groupKey) ?? 0
+        existingSkins.splice(insertAt + 1 + offset, 0, skin)
+        extraCountAfterParent.set(groupKey, offset + 1)
       } else {
         existingSkins.push(skin)
       }

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useAlert } from '@renderer/hooks/Alert'
+import { FloatWindowPosition } from '../types'
 
 type ConfigPaths = Awaited<ReturnType<typeof window.api.getConfigPaths>>
 
@@ -14,6 +15,12 @@ function SetupWindow(): JSX.Element {
   const hasApi = typeof window !== 'undefined' && !!window.api
   const [config, setConfig] = useState<ConfigPaths | null>(null)
   const [busy, setBusy] = useState<Busy>('')
+  // 设置面板
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [multiEnabled, setMultiEnabled] = useState(true)
+  const [floatPosition, setFloatPosition] = useState<FloatWindowPosition>('right')
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null)
+  const msgTimer = useRef<number | null>(null)
 
   const refresh = useCallback(async (): Promise<void> => {
     const cfg = await window.api.getConfigPaths()
@@ -24,6 +31,13 @@ function SetupWindow(): JSX.Element {
     if (!hasApi) return // 浏览器预览模式（无 preload）只展示静态界面
     refresh().catch(() => setAlert('读取配置失败，请重试', 'error'))
   }, [refresh, setAlert, hasApi])
+
+  // 卸载时清理设置面板的提示定时器
+  useEffect(() => {
+    return () => {
+      if (msgTimer.current) window.clearTimeout(msgTimer.current)
+    }
+  }, [])
 
   const gamePath = config?.leaguePath ?? ''
   const skinsPath = config?.skinsPath || config?.skinsLocation || ''
@@ -63,6 +77,48 @@ function SetupWindow(): JSX.Element {
       setAlert(error instanceof Error ? error.message : '导入失败', 'error')
     } finally {
       setBusy('')
+    }
+  }
+
+  const flashMsg = (text: string): void => {
+    setSettingsMsg(text)
+    if (msgTimer.current) window.clearTimeout(msgTimer.current)
+    msgTimer.current = window.setTimeout(() => setSettingsMsg(null), 2600)
+  }
+
+  /** 打开设置面板时读取各开关与悬浮窗位置 */
+  const loadSettings = async (): Promise<void> => {
+    if (!hasApi) return
+    const [multi, position] = await Promise.all([
+      window.api.getMultiChampionSkinEnabled(),
+      window.api.getFloatWindowPosition(),
+    ])
+    setMultiEnabled(multi)
+    setFloatPosition(position)
+    setSettingsMsg(null)
+  }
+
+  const toggleSettings = (): void => {
+    const next = !settingsOpen
+    setSettingsOpen(next)
+    if (next) void loadSettings()
+  }
+
+  const handlePositionChange = async (position: FloatWindowPosition): Promise<void> => {
+    if (!hasApi) return
+    setFloatPosition(position)
+    await window.api.setFloatWindowPosition(position)
+  }
+
+  const handleToggleMulti = async (next: boolean): Promise<void> => {
+    if (!hasApi) return
+    setMultiEnabled(next)
+    await window.api.setMultiChampionSkinEnabled(next)
+    if (!next) {
+      await window.api.clearAllSkins()
+      flashMsg('已关闭多英雄模式并清除已记住的皮肤')
+    } else {
+      flashMsg('多英雄皮肤已开启')
     }
   }
 
@@ -128,7 +184,7 @@ function SetupWindow(): JSX.Element {
   )
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', userSelect: 'none' }}>
+    <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', userSelect: 'none' }}>
       {/* 顶部拖拽栏 */}
       <div
         className="window-drag-region"
@@ -148,6 +204,25 @@ function SetupWindow(): JSX.Element {
           className="window-no-drag"
           style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '100%' }}
         >
+          <button
+            onClick={toggleSettings}
+            title="设置"
+            style={btnSquareStyle}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#394c74ff')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              style={{ shapeRendering: 'geometricPrecision', imageRendering: 'crisp-edges' }}
+            >
+              <path
+                fill="#f0e6d2"
+                d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.08-.7-1.66-.94l-.38-2.65c-.03-.24-.24-.42-.48-.42h-4c-.24 0-.45.18-.48.42l-.38 2.65c-.58.24-1.14.55-1.66.94l-2.49-1c-.22-.08-.49 0-.61.22l-2 3.46c-.12.22-.07.49.12.64l2.11 1.65c-.04.32-.07.64-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.08.7 1.66.94l.38 2.65c.03.24.24.42.48.42h4c.24 0 .45-.18.48-.42l.38-2.65c.58-.24 1.14-.55 1.66-.94l2.49 1c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-7.43 2.52c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
+              />
+            </svg>
+          </button>
           <button
             onClick={hideToTray}
             title="隐藏到后台"
@@ -235,7 +310,7 @@ function SetupWindow(): JSX.Element {
           <p style={{ margin: '0.6rem 0 0', fontSize: '0.66rem', color: '#5a6570', lineHeight: 1.6 }}>
             皮肤文件夹需包含「英雄名目录 → 皮肤文件(.fantome/.zip)」结构。
             <br />
-            暂无本地皮肤时，可先隐藏到后台，之后通过托盘菜单或悬浮窗设置随时补充。
+            暂无本地皮肤时，可先隐藏到后台，之后从托盘打开本窗口，通过右上角「设置」随时补充。
           </p>
         </div>
 
@@ -282,6 +357,102 @@ function SetupWindow(): JSX.Element {
           </p>
         </div>
       </div>
+
+      {/* 设置面板覆盖层 */}
+      {settingsOpen && (
+        <div
+          onClick={() => setSettingsOpen(false)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(2, 8, 18, 0.72)'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(92%, 340px)',
+              maxHeight: '92%',
+              overflowY: 'auto',
+              background: 'linear-gradient(180deg, #0d1931 0%, #0a1428 100%)',
+              border: '1px solid #785b28',
+              borderRadius: '10px',
+              padding: '0.9rem 1rem 1rem',
+              boxShadow: '0 10px 36px rgba(0,0,0,0.55)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+              <span style={{ fontFamily: 'Beaufort, sans-serif', fontSize: '1rem', letterSpacing: '0.08em', color: '#f0e6d2' }}>
+                设置
+              </span>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                title="关闭设置"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#a09b8c', padding: '2px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h4>悬浮窗</h4>
+              <span className="settings-radio-label">悬浮窗位置</span>
+              <div className="settings-segmented" style={{ display: 'flex', width: '100%' }}>
+                {([
+                  ['right', '右侧'],
+                  ['left', '左侧'],
+                  ['top', '上方'],
+                  ['bottom', '下方'],
+                ] as [FloatWindowPosition, string][]).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={`segmented-btn ${floatPosition === value ? 'active' : ''}`}
+                    style={{ flex: 1 }}
+                    onClick={() => handlePositionChange(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="settings-toggle-item">
+                <div className="settings-toggle-text">
+                  <span className="settings-toggle-title">多英雄皮肤</span>
+                  <span className="settings-toggle-desc">
+                    {multiEnabled ? '可为多个英雄分别应用不同皮肤' : '一次仅为一个英雄应用皮肤'}
+                  </span>
+                </div>
+                <label
+                  className={`toggle-switch ${multiEnabled ? 'active' : ''}`}
+                  onClick={() => handleToggleMulti(!multiEnabled)}
+                >
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+            </div>
+
+            {settingsMsg && (
+              <p
+                style={{
+                  margin: '0.3rem 0 0',
+                  fontSize: '0.72rem',
+                  color: '#c8aa6e',
+                  textAlign: 'center',
+                  lineHeight: 1.5,
+                  wordBreak: 'break-all'
+                }}
+              >
+                {settingsMsg}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

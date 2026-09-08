@@ -26,7 +26,7 @@ let isQuitting = false
 
 // ---------- 配置向导窗口 ----------
 
-const SETUP_WINDOW_SIZE = { width: 480, height: 640 }
+const SETUP_WINDOW_SIZE = { width: 480, height: 580 }
 
 /** 打开配置向导窗口（已存在则显示并聚焦） */
 export function openSetupWindow(): void {
